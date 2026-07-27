@@ -45,16 +45,13 @@ if df_cocktails is None or df_cocktails.empty:
 
 # --- פונקציית סריקה רקורסיבית מקיפה וחכמה ---
 def find_card_file_unbeatable(drink_name):
-    # נרמול המחרוזת: הסרת כל התווים המיוחדים, רווחים, והפיכה לאותיות קטנות
     def clean_str(s):
         return "".join(c.lower() for c in str(s) if c.isalnum())
 
     target_clean = clean_str(drink_name)
     valid_extensions = ['.png', '.jpg', '.jpeg', '.pdf']
 
-    # סריקה רקורסיבית בכל התיקיות והתת-תיקיות בפרויקט
     for root, dirs, files in os.walk("."):
-        # התעלמות מתיקיות מערכת של git
         if "/." in root or root.startswith("./."):
             continue
             
@@ -249,10 +246,9 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
         </html>
         """
 
-        # ב. יצירת כרטיסיות ברמן (A4 - 3 בדף)
+        # ב. יצירת כרטיסיות ברמן (A4 - 3 בדף בדיוק)
         cards_html = ""
         for item in selected_drinks_data:
-            # חיפוש חכם ואוניברסלי בכל תיקיות הפרויקט
             card_path, ext = find_card_file_unbeatable(item['OriginalName'])
             
             if not card_path:
@@ -297,27 +293,31 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 margin: 0;
             }}
             * {{ box-sizing: border-box; }}
-            body {{
+            html, body {{
                 margin: 0;
                 padding: 0;
                 background-color: #ffffff;
             }}
             .card-wrapper {{
                 width: 210mm;
-                height: 99mm;
+                height: 98mm; /* מובטח להיכנס 3 פעמים בתוך 297 מ"מ של דף A4 */
                 overflow: hidden;
                 display: block;
                 border-bottom: 1px dashed #999999;
                 page-break-inside: avoid;
+                margin: 0;
+                padding: 0;
             }}
             .card-wrapper:nth-child(3n) {{
                 border-bottom: none;
+                page-break-after: always; /* מעבר דף אוטומטי אך ורק לאחר כל כרטיסייה שלישית */
             }}
             .card-img {{
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
                 border: none;
+                display: block;
             }}
             .missing-card {{
                 display: flex;
