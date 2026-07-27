@@ -6,37 +6,15 @@ import os
 from PIL import Image
 import io
 
-st.set_page_config(page_title="מחולל תפריטים דינמי", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v3.1", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – הפקת תפריטים וכרטיסיות ברמן ב-PDF בשניות.")
 
-# --- פונקציה חכמה להסרת רקע לבן מתמונות לוגו ---
-def remove_white_background(image_bytes):
-    try:
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
-        datas = img.getdata()
-        
-        new_data = []
-        for item in datas:
-            # מזהה פיקסלים לבנים או כמעט לבנים והופך אותם לשקופים (Alpha = 0)
-            if item[0] > 225 and item[1] > 225 and item[2] > 225:
-                new_data.append((255, 255, 255, 0))
-            else:
-                new_data.append(item)
-                
-        img.putdata(new_data)
-        output = io.BytesIO()
-        img.save(output, format="PNG")
-        return output.getvalue()
-    except Exception:
-        return image_bytes
-
-# --- הגדרות מערכת בסרגל הצד ---
-st.sidebar.header("⚙️ הגדרות מאגר הנתונים")
-
-default_sheet = "https://docs.google.com/spreadsheets/d/1YourActualSpreadsheetIdHere/edit?usp=sharing"
-gsheet_url = st.sidebar.text_input("קישור לגוגל שיטס שלך:", value=default_sheet)
+# ==============================================================================
+# 🔗 קישור קבוע ומובנה לגוגל שיטס של העסק (הסוכנים לא צריכים להזין כלום!)
+# ==============================================================================
+DEFAULT_GSHEET_URL = https://docs.google.com/spreadsheets/d/1i0k5wIIgleWMY8LyAJVwrfXywnNP2kKv4WjcNCIvyBE/edit?usp=sharing
 
 def get_csv_url(url):
     try:
@@ -47,7 +25,7 @@ def get_csv_url(url):
         pass
     return None
 
-csv_url = get_csv_url(gsheet_url)
+csv_url = get_csv_url(DEFAULT_GSHEET_URL)
 
 @st.cache_data(ttl=10)
 def load_data(url):
@@ -63,7 +41,7 @@ def load_data(url):
 df_cocktails = load_data(csv_url)
 
 if df_cocktails is None or df_cocktails.empty:
-    st.warning("⚠️ אנא הזן קישור גוגל שיטס תקין וציבורי בתפריט הצד כדי להתחיל.")
+    st.error("⚠️ לא ניתן לטעון את מאגר הקוקטיילים. אנא ודא שקישור הגוגל שיטס בקוד תקין וציבורי.")
     st.stop()
 
 # --- פונקציית סריקה רקורסיבית מקיפה וחכמה ---
@@ -89,51 +67,107 @@ def find_card_file_unbeatable(drink_name):
 
     return None, None
 
-# --- 1. פרטי העסק והעיצוב ---
-st.subheader("1. פרטי העסק והעיצוב")
+# --- פונקציה חכמה להסרת רקע לבן מתמונות לוגו ---
+def remove_white_background(image_bytes):
+    try:
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+        datas = img.getdata()
+        
+        new_data = []
+        for item in datas:
+            if item[0] > 225 and item[1] > 225 and item[2] > 225:
+                new_data.append((255, 255, 255, 0))
+            else:
+                new_data.append(item)
+                
+        img.putdata(new_data)
+        output = io.BytesIO()
+        img.save(output, format="PNG")
+        return output.getvalue()
+    except Exception:
+        return image_bytes
+
+# --- 1. פרטי העסק והכותרות ---
+st.subheader("1. פרטי העסק והכותרות")
 
 col_title, col_align = st.columns([2, 1])
 with col_title:
-    menu_title = st.text_input("כותרת התפריט (עברית/אנגלית):", value="COCKTAIL MENU")
+    menu_title = st.text_input("כותרת ראשית לתפריט:", value="COCKTAIL MENU")
 with col_align:
     text_align = st.selectbox("כיוון כותרת:", options=["מרכז", "שמאל (אנגלית)", "ימין (עברית)"])
 
+menu_subtitle = st.text_input("תת-כותרת / תיאור קצר (רשות):", value="", placeholder="למשל: תפריט קוקטיילים קלאסי | Happy Hour")
+
 align_css = "center" if "מרכז" in text_align else "left" if "שמאל" in text_align else "right"
 
-st.write("**בחירת עיצוב רקע לתפריט (130x240 מ\"מ):**")
-bg_style = st.selectbox("בחר סגנון עיצוב:", ["יוקרתי כהה", "מינימליסטי בהיר", "רקע תמונה מותאם אישית (העלאת קובץ)"])
+st.markdown("---")
+st.subheader("2. עיצוב, צבעים ומסגרת")
+
+bg_style = st.selectbox(
+    "בחר סגנון עיצוב לתפריט (130x240 מ\"מ):", 
+    ["שחור קלאסי (רקע שחור, מלל לבן)", "לבן קלאסי (רקע לבן, מלל שחור)", "התאמת צבעים אישית (חופשי)", "רקע תמונה מותאם אישית (העלאת קובץ)"]
+)
 
 bg_base64 = ""
-bg_color_css = ""
+bg_color_css = "background-color: #000000;"
 text_color_css = "#ffffff"
-border_color_css = "#66fcf1"
-line_color_css = "#45f3ff"
-desc_color_css = "#85929e"
+border_color_css = "#ffffff"
+line_color_css = "#555555"
+desc_color_css = "#cccccc"
 
-if bg_style == "יוקרתי כהה":
-    bg_color_css = "background-color: #0b0c10;"
+if bg_style == "שחור קלאסי (רקע שחור, מלל לבן)":
+    bg_color_css = "background-color: #000000;"
     text_color_css = "#ffffff"
-    border_color_css = "#66fcf1"
-    line_color_css = "#45f3ff"
-    desc_color_css = "#85929e"
-elif bg_style == "מינימליסטי בהיר":
-    bg_color_css = "background-color: #f8f9fa;"
-    text_color_css = "#2b2b2b"
-    border_color_css = "#d4a373"
-    line_color_css = "#d4a373"
-    desc_color_css = "#666666"
+    border_color_css = "#ffffff"
+    line_color_css = "#444444"
+    desc_color_css = "#cccccc"
+elif bg_style == "לבן קלאסי (רקע לבן, מלל שחור)":
+    bg_color_css = "background-color: #ffffff;"
+    text_color_css = "#111111"
+    border_color_css = "#111111"
+    line_color_css = "#cccccc"
+    desc_color_css = "#555555"
+elif bg_style == "התאמת צבעים אישית (חופשי)":
+    col_c1, col_c2, col_c3 = st.columns(3)
+    with col_c1:
+        custom_bg = st.color_picker("צבע רקע:", "#000000")
+        bg_color_css = f"background-color: {custom_bg};"
+    with col_c2:
+        text_color_css = st.color_picker("צבע טקסט וכותרת:", "#ffffff")
+    with col_c3:
+        border_color_css = st.color_picker("צבע מסגרת וקווים:", "#ffffff")
+    line_color_css = border_color_css
+    desc_color_css = text_color_css
 else:
     uploaded_bg = st.file_uploader("העלה קובץ תמונת רקע (מומלץ במידות 130x240 מ\"מ):", type=["png", "jpg", "jpeg"], key="bg_uploader")
     if uploaded_bg:
         bg_base64 = base64.b64encode(uploaded_bg.read()).decode("utf-8")
-    text_color_css = st.color_picker("בחר צבע גופן לתפריט:", "#ffffff")
-    border_color_css = st.color_picker("בחר צבע למסגרת התפריט:", "#ffffff")
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        text_color_css = st.color_picker("צבע טקסט:", "#ffffff")
+    with col_c2:
+        border_color_css = st.color_picker("צבע מסגרת:", "#ffffff")
     line_color_css = border_color_css
     desc_color_css = text_color_css
 
-# העלאת לוגו + מנגנון ניקוי רקע
-uploaded_logo = st.file_uploader("העלה לוגו של בית העסק (PNG / JPG):", type=["png", "jpg", "jpeg"], key="logo_uploader")
-auto_remove_bg = st.checkbox("🧹 הסר רקע לבן מהלוגו באופן אוטומטי (מומלץ ללוגו עם רקע לבן)", value=True)
+border_option = st.radio("סגנון מסגרת סביב התפריט:", ["מסגרת עדינה (ברירת מחדל)", "מסגרת עבה", "ללא מסגרת"], horizontal=True)
+
+if border_option == "מסגרת עדינה (ברירת מחדל)":
+    border_style_css = f"border: 1.5px solid {border_color_css};"
+elif border_option == "מסגרת עבה":
+    border_style_css = f"border: 3.5px solid {border_color_css};"
+else:
+    border_style_css = "border: none;"
+
+st.markdown("---")
+st.subheader("3. לוגו והערות בתחתית (Footer)")
+
+col_l1, col_l2 = st.columns([2, 1])
+with col_l1:
+    uploaded_logo = st.file_uploader("העלה לוגו של בית העסק (PNG / JPG):", type=["png", "jpg", "jpeg"], key="logo_uploader")
+    auto_remove_bg = st.checkbox("🧹 הסר רקע לבן מהלוגו באופן אוטומטי", value=True)
+with col_l2:
+    footer_text = st.text_input("הערת שוליים בתחתית (רשות):", value="", placeholder="למשל: המחירים כוללים מע\"מ | ט.ל.ח")
 
 logo_base64 = ""
 if uploaded_logo:
@@ -143,7 +177,7 @@ if uploaded_logo:
     logo_base64 = base64.b64encode(logo_bytes).decode("utf-8")
 
 st.markdown("---")
-st.subheader("2. בחירת מוצרים, תמחור ועריכה בזמן אמת")
+st.subheader("4. בחירת מוצרים, תמחור ועריכה בזמן אמת")
 
 selected_drinks_data = []
 
@@ -189,6 +223,8 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
             """
 
         logo_html = f'<div class="logo-container"><img src="data:image/png;base64,{logo_base64}" class="logo"></div>' if logo_base64 else ''
+        footer_note_html = f'<div class="footer-note">{footer_text}</div>' if footer_text else ''
+        subtitle_html = f'<div class="subtitle">{menu_subtitle}</div>' if menu_subtitle else ''
 
         bg_css_rule = f"background-image: url(data:image/png;base64,{bg_base64}); background-size: cover;" if bg_base64 else bg_color_css
 
@@ -200,7 +236,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
         <style>
             @page {{
                 size: 130mm 240mm;
-                margin: 15mm 10mm;
+                margin: 12mm 10mm;
                 {bg_css_rule}
             }}
             * {{ box-sizing: border-box; }}
@@ -216,7 +252,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 flex-direction: column;
                 justify-content: space-between;
                 height: 100%;
-                border: 2px solid {border_color_css};
+                {border_style_css}
                 padding: 15px;
             }}
             .header h1 {{
@@ -227,18 +263,25 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 letter-spacing: 1px;
                 text-transform: uppercase;
             }}
+            .subtitle {{
+                font-size: 10pt;
+                text-align: {align_css};
+                color: {desc_color_css};
+                margin-top: 4px;
+                letter-spacing: 0.5px;
+            }}
             .drinks-list {{
                 display: flex;
                 flex-direction: column;
                 justify-content: space-around;
                 flex-grow: 1;
-                margin: 20px 0;
+                margin: 15px 0;
             }}
             .menu-item {{ width: 100%; }}
             .item-header {{ display: table; width: 100%; }}
             .item-name {{
                 display: table-cell;
-                font-size: 12pt;
+                font-size: 11.5pt;
                 font-weight: bold;
                 white-space: nowrap;
             }}
@@ -250,37 +293,49 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
             }}
             .item-price {{
                 display: table-cell;
-                font-size: 12pt;
+                font-size: 11.5pt;
                 font-weight: bold;
                 padding-right: 5px;
             }}
             .item-desc {{
-                font-size: 9.5pt;
+                font-size: 9pt;
                 color: {desc_color_css};
-                margin-top: 4px;
+                margin-top: 3px;
                 line-height: 1.3;
             }}
-            .logo-container {{ 
-                text-align: center; 
+            .footer-section {{
+                text-align: center;
                 margin-top: auto;
+            }}
+            .footer-note {{
+                font-size: 8pt;
+                color: {desc_color_css};
+                margin-bottom: 5px;
+            }}
+            .logo-container {{
                 background: transparent !important;
                 background-color: transparent !important;
             }}
-            .logo {{ 
-                max-height: 35mm; 
-                max-width: 80mm; 
-                object-fit: contain; 
+            .logo {{
+                max-height: 30mm;
+                max-width: 75mm;
+                object-fit: contain;
                 background: transparent !important;
-                background-color: transparent !important;
                 border: none !important;
             }}
         </style>
         </head>
         <body>
             <div class="menu-container">
-                <div class="header"><h1>{menu_title}</h1></div>
+                <div class="header">
+                    <h1>{menu_title}</h1>
+                    {subtitle_html}
+                </div>
                 <div class="drinks-list">{menu_items_html}</div>
-                {logo_html}
+                <div class="footer-section">
+                    {footer_note_html}
+                    {logo_html}
+                </div>
             </div>
         </body>
         </html>
