@@ -3,11 +3,34 @@ import pandas as pd
 from weasyprint import HTML
 import base64
 import os
+from PIL import Image
+import io
 
 st.set_page_config(page_title="מחולל תפריטים דינמי", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – הפקת תפריטים וכרטיסיות ברמן ב-PDF בשניות.")
+
+# --- פונקציה חכמה להסרת רקע לבן מתמונות לוגו ---
+def remove_white_background(image_bytes):
+    try:
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+        datas = img.getdata()
+        
+        new_data = []
+        for item in datas:
+            # מזהה פיקסלים לבנים או כמעט לבנים והופך אותם לשקופים (Alpha = 0)
+            if item[0] > 225 and item[1] > 225 and item[2] > 225:
+                new_data.append((255, 255, 255, 0))
+            else:
+                new_data.append(item)
+                
+        img.putdata(new_data)
+        output = io.BytesIO()
+        img.save(output, format="PNG")
+        return output.getvalue()
+    except Exception:
+        return image_bytes
 
 # --- הגדרות מערכת בסרגל הצד ---
 st.sidebar.header("⚙️ הגדרות מאגר הנתונים")
@@ -108,10 +131,15 @@ else:
     line_color_css = border_color_css
     desc_color_css = text_color_css
 
+# העלאת לוגו + מנגנון ניקוי רקע
 uploaded_logo = st.file_uploader("העלה לוגו של בית העסק (PNG / JPG):", type=["png", "jpg", "jpeg"], key="logo_uploader")
+auto_remove_bg = st.checkbox("🧹 הסר רקע לבן מהלוגו באופן אוטומטי (מומלץ ללוגו עם רקע לבן)", value=True)
+
 logo_base64 = ""
 if uploaded_logo:
     logo_bytes = uploaded_logo.read()
+    if auto_remove_bg:
+        logo_bytes = remove_white_background(logo_bytes)
     logo_base64 = base64.b64encode(logo_bytes).decode("utf-8")
 
 st.markdown("---")
@@ -232,8 +260,20 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 margin-top: 4px;
                 line-height: 1.3;
             }}
-            .logo-container {{ text-align: center; margin-top: auto; }}
-            .logo {{ max-height: 35mm; max-width: 80mm; object-fit: contain; }}
+            .logo-container {{ 
+                text-align: center; 
+                margin-top: auto;
+                background: transparent !important;
+                background-color: transparent !important;
+            }}
+            .logo {{ 
+                max-height: 35mm; 
+                max-width: 80mm; 
+                object-fit: contain; 
+                background: transparent !important;
+                background-color: transparent !important;
+                border: none !important;
+            }}
         </style>
         </head>
         <body>
@@ -300,7 +340,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
             }}
             .card-wrapper {{
                 width: 210mm;
-                height: 98mm; /* מובטח להיכנס 3 פעמים בתוך 297 מ"מ של דף A4 */
+                height: 98mm;
                 overflow: hidden;
                 display: block;
                 border-bottom: 1px dashed #999999;
@@ -310,7 +350,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
             }}
             .card-wrapper:nth-child(3n) {{
                 border-bottom: none;
-                page-break-after: always; /* מעבר דף אוטומטי אך ורק לאחר כל כרטיסייה שלישית */
+                page-break-after: always;
             }}
             .card-img {{
                 width: 100%;
