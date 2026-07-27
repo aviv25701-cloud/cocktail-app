@@ -4,15 +4,14 @@ from weasyprint import HTML
 import base64
 import os
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v2", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v2.1", layout="centered", page_icon="🍹")
 
-st.title("🍹 מחולל תפריטים והצעות הגשה - גרסה 2.0")
-st.write("מערכת משודרגת: עריכה בזמן אמת, בחירת רקעים והטמעת כרטיסיות מעוצבות.")
+st.title("🍹 מחולל תפריטים והצעות הגשה")
+st.write("מערכת חכמה לסוכני שטח – הפקת תפריטים וכרטיסיות ברמן ב-PDF בשניות.")
 
-# --- הגדרות מערכת בציד הדף (Sidebar) ---
+# --- הגדרות מערכת בסרגל הצד ---
 st.sidebar.header("⚙️ הגדרות מאגר הנתונים")
 
-# כתובת גוגל שיטס שלך
 default_sheet = "https://docs.google.com/spreadsheets/d/1YourActualSpreadsheetIdHere/edit?usp=sharing"
 gsheet_url = st.sidebar.text_input("קישור לגוגל שיטס שלך:", value=default_sheet)
 
@@ -27,7 +26,7 @@ def get_csv_url(url):
 
 csv_url = get_csv_url(gsheet_url)
 
-@st.cache_data(ttl=10) # רענון מהיר של 10 שניות לשינויים בגוגל שיטס
+@st.cache_data(ttl=10)
 def load_data(url):
     if url:
         try:
@@ -44,6 +43,26 @@ if df_cocktails is None or df_cocktails.empty:
     st.warning("⚠️ אנא הזן קישור גוגל שיטס תקין וציבורי בתפריט הצד כדי להתחיל.")
     st.stop()
 
+# --- פונקציית חיפוש קבצים חכמה וסלחנית ---
+def find_card_file(drink_name):
+    cards_dir = "cards"
+    if not os.path.exists(cards_dir):
+        return None, None
+    
+    clean_target = str(drink_name).strip().lower()
+    
+    # סריקת כל הקבצים בתיקיית cards
+    for filename in os.listdir(cards_dir):
+        name_without_ext, ext = os.path.splitext(filename)
+        clean_filename = name_without_ext.strip().lower()
+        
+        # התאמה גמישה ללא תלות באותיות גדולות/קטנות או רווחים
+        if clean_filename == clean_target and ext.lower() in ['.png', '.jpg', '.jpeg', '.pdf']:
+            full_path = os.path.join(cards_dir, filename)
+            return full_path, ext.lower()
+            
+    return None, None
+
 # --- 1. פרטי העסק והעיצוב ---
 st.subheader("1. פרטי העסק והעיצוב")
 
@@ -55,7 +74,6 @@ with col_align:
 
 align_css = "center" if "מרכז" in text_align else "left" if "שמאל" in text_align else "right"
 
-# בחירת עיצוב רקע לתפריט
 st.write("**בחירת עיצוב רקע לתפריט (130x240 מ\"מ):**")
 bg_style = st.selectbox("בחר סגנון עיצוב:", ["יוקרתי כהה", "מינימליסטי בהיר", "רקע תמונה מותאם אישית (העלאת קובץ)"])
 
@@ -79,7 +97,6 @@ elif bg_style == "מינימליסטי בהיר":
     line_color_css = "#d4a373"
     desc_color_css = "#666666"
 else:
-    # העלאת תמונת רקע מלאה לתפריט
     uploaded_bg = st.file_uploader("העלה קובץ תמונת רקע (מומלץ במידות 130x240 מ\"מ):", type=["png", "jpg", "jpeg"], key="bg_uploader")
     if uploaded_bg:
         bg_base64 = base64.b64encode(uploaded_bg.read()).decode("utf-8")
@@ -88,7 +105,6 @@ else:
     line_color_css = border_color_css
     desc_color_css = text_color_css
 
-# העלאת לוגו של העסק (יופיע בתחתית)
 uploaded_logo = st.file_uploader("העלה לוגו של בית העסק (PNG / JPG):", type=["png", "jpg", "jpeg"], key="logo_uploader")
 logo_base64 = ""
 if uploaded_logo:
@@ -97,16 +113,13 @@ if uploaded_logo:
 
 st.markdown("---")
 st.subheader("2. בחירת מוצרים, תמחור ועריכה בזמן אמת")
-st.info("💡 לאחר סימון ה-V, ייפתח אזור שבו תוכל לערוך את שם המשקה והמרכיבים שלו במיוחד עבור לקוח זה!")
 
 selected_drinks_data = []
 
-# לולאה דינמית המציגה את המוצרים ומאפשרת עריכה של כל שדה בנפרד!
 for idx, row in df_cocktails.iterrows():
     is_selected = st.checkbox(f"🍹 **{row['Name']}**", key=f"select_{row['ID']}")
     
     if is_selected:
-        # פתיחת תיבת עריכה ייעודית למוצר שנבחר
         with st.expander(f"עריכת פרטים עבור: {row['Name']}", expanded=True):
             col_name, col_price = st.columns([3, 1])
             with col_name:
@@ -119,13 +132,13 @@ for idx, row in df_cocktails.iterrows():
         selected_drinks_data.append({
             "ID": row['ID'],
             "Name": editable_name,
+            "OriginalName": row['Name'], # לשמירת התאמת הקובץ המקורי
             "Price": editable_price,
             "Ingredients": editable_ingredients
         })
 
 st.markdown("---")
 
-# --- הפקת ה-PDF ---
 if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות", use_container_width=True):
     if not selected_drinks_data:
         st.error("❌ אנא בחר לפחות קוקטייל אחד כדי להפיק קבצים!")
@@ -146,7 +159,6 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
 
         logo_html = f'<div class="logo-container"><img src="data:image/png;base64,{logo_base64}" class="logo"></div>' if logo_base64 else ''
 
-        # הגדרת סגנון הרקע (צבע או תמונת רקע ב-Base64)
         bg_css_rule = f"background-image: url(data:image/png;base64,{bg_base64}); background-size: cover;" if bg_base64 else bg_color_css
 
         menu_html = f"""
@@ -171,7 +183,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
             .menu-container {{
                 display: flex;
                 flex-direction: column;
-                justify-content: space-between; /* מרווח דינמי מושלם */
+                justify-content: space-between;
                 height: 100%;
                 border: 2px solid {border_color_css};
                 padding: 15px;
@@ -187,26 +199,17 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
             .drinks-list {{
                 display: flex;
                 flex-direction: column;
-                justify-content: space-around; /* מחלק את החלל הלבן בצורה מושלמת ללא שטח מת! */
+                justify-content: space-around;
                 flex-grow: 1;
                 margin: 20px 0;
             }}
-            .menu-item {{
-                width: 100%;
-            }}
-            .item-header {{
-                display: table;
-                width: 100%;
-            }}
+            .menu-item {{ width: 100%; }}
+            .item-header {{ display: table; width: 100%; }}
             .item-name {{
                 display: table-cell;
                 font-size: 12pt;
                 font-weight: bold;
                 white-space: nowrap;
-            """
-        
-        # סגירה והמשך בניית ה-CSS של התפריט
-        menu_html += f"""
             }}
             .item-line {{
                 display: table-cell;
@@ -226,61 +229,56 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 margin-top: 4px;
                 line-height: 1.3;
             }}
-            .logo-container {{
-                text-align: center;
-                margin-top: auto;
-            }}
-            .logo {{
-                max-height: 35mm;
-                max-width: 80mm;
-                object-fit: contain;
-            }}
+            .logo-container {{ text-align: center; margin-top: auto; }}
+            .logo {{ max-height: 35mm; max-width: 80mm; object-fit: contain; }}
         </style>
         </head>
         <body>
             <div class="menu-container">
-                <div class="header">
-                    <h1>{menu_title}</h1>
-                </div>
-                <div class="drinks-list">
-                    {menu_items_html}
-                </div>
+                <div class="header"><h1>{menu_title}</h1></div>
+                <div class="drinks-list">{menu_items_html}</div>
                 {logo_html}
             </div>
         </body>
         </html>
         """
 
-        # ב. יצירת כרטיסיות ברמן (A4 - 3 בדף) באמצעות הלבשת קבצי התמונה המקוריות
+        # ב. יצירת כרטיסיות ברמן (A4 - 3 בדף)
         cards_html = ""
         for item in selected_drinks_data:
-            # חיפוש הקובץ לפי עמודת ה-Name בפורמטים פופולריים של תמונות
-            found_card = False
-            card_src = ""
+            # שימוש בפונקציה החכמה למציאת הקובץ
+            card_path, ext = find_card_file(item['OriginalName'])
             
-            # בדיקת קיום קובץ PNG או JPG בתיקיית cards
-            for ext in [".png", ".jpg", ".jpeg"]:
-                card_filename = f"{item['Name']}{ext}"
-                card_path = os.path.join("cards", card_filename)
-                
-                if os.path.exists(card_path):
-                    with open(card_path, "rb") as card_file:
-                        card_b64 = base64.b64encode(card_file.read()).decode("utf-8")
-                    card_src = f"data:image/png;base64,{card_b64}"
-                    found_card = True
-                    break
+            if not card_path:
+                # ניסיון משני לפי השם שנערך בתפריט
+                card_path, ext = find_card_file(item['Name'])
 
-            if found_card:
-                cards_html += f"""
-                <div class="card-wrapper">
-                    <img src="{card_src}" class="card-img">
-                </div>
-                """
+            if card_path and os.path.exists(card_path):
+                with open(card_path, "rb") as card_file:
+                    card_b64 = base64.b64encode(card_file.read()).decode("utf-8")
+                
+                mime_type = "image/png" if ext in ['.png', '.jpg', '.jpeg'] else "application/pdf"
+                
+                if mime_type.startswith("image"):
+                    cards_html += f"""
+                    <div class="card-wrapper">
+                        <img src="data:{mime_type};base64,{card_b64}" class="card-img">
+                    </div>
+                    """
+                else:
+                    cards_html += f"""
+                    <div class="card-wrapper">
+                        <embed src="data:{mime_type};base64,{card_b64}" type="application/pdf" class="card-img">
+                    </div>
+                    """
             else:
+                # מציג פירוט מדויק של מה שחסר כדי להקל על הדיבאג
                 cards_html += f"""
                 <div class="card-wrapper missing-card">
                     <h3>{item['Name']}</h3>
-                    <p style="color:red; font-size:14pt;">שגיאה: קובץ הגרפיקה "{item['Name']}.png" או ".jpg" חסר בתיקיית cards!</p>
+                    <p style="color:red; font-size:12pt;">
+                        שגיאה: לא נמצא קובץ תמונה/PDF עבור "{item['OriginalName']}" בתיקיית cards!
+                    </p>
                 </div>
                 """
 
@@ -300,7 +298,6 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 padding: 0;
                 background-color: #ffffff;
             }}
-            /* חלוקה מדויקת ל-3 חלקים שווים על גבי דף A4 */
             .card-wrapper {{
                 width: 210mm;
                 height: 99mm;
@@ -316,6 +313,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
+                border: none;
             }}
             .missing-card {{
                 display: flex;
