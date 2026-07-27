@@ -4,7 +4,7 @@ from weasyprint import HTML
 import base64
 import os
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v2.1", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – הפקת תפריטים וכרטיסיות ברמן ב-PDF בשניות.")
@@ -43,24 +43,30 @@ if df_cocktails is None or df_cocktails.empty:
     st.warning("⚠️ אנא הזן קישור גוגל שיטס תקין וציבורי בתפריט הצד כדי להתחיל.")
     st.stop()
 
-# --- פונקציית חיפוש קבצים חכמה וסלחנית ---
-def find_card_file(drink_name):
-    cards_dir = "cards"
-    if not os.path.exists(cards_dir):
-        return None, None
-    
-    clean_target = str(drink_name).strip().lower()
-    
-    # סריקת כל הקבצים בתיקיית cards
-    for filename in os.listdir(cards_dir):
-        name_without_ext, ext = os.path.splitext(filename)
-        clean_filename = name_without_ext.strip().lower()
-        
-        # התאמה גמישה ללא תלות באותיות גדולות/קטנות או רווחים
-        if clean_filename == clean_target and ext.lower() in ['.png', '.jpg', '.jpeg', '.pdf']:
-            full_path = os.path.join(cards_dir, filename)
-            return full_path, ext.lower()
+# --- פונקציית סריקה רקורסיבית מקיפה וחכמה ---
+def find_card_file_unbeatable(drink_name):
+    # נרמול המחרוזת: הסרת כל התווים המיוחדים, רווחים, והפיכה לאותיות קטנות
+    def clean_str(s):
+        return "".join(c.lower() for c in str(s) if c.isalnum())
+
+    target_clean = clean_str(drink_name)
+    valid_extensions = ['.png', '.jpg', '.jpeg', '.pdf']
+
+    # סריקה רקורסיבית בכל התיקיות והתת-תיקיות בפרויקט
+    for root, dirs, files in os.walk("."):
+        # התעלמות מתיקיות מערכת של git
+        if "/." in root or root.startswith("./."):
+            continue
             
+        for filename in files:
+            name_without_ext, ext = os.path.splitext(filename)
+            ext_lower = ext.lower()
+            
+            if ext_lower in valid_extensions:
+                if clean_str(name_without_ext) == target_clean:
+                    full_path = os.path.join(root, filename)
+                    return full_path, ext_lower
+
     return None, None
 
 # --- 1. פרטי העסק והעיצוב ---
@@ -132,7 +138,7 @@ for idx, row in df_cocktails.iterrows():
         selected_drinks_data.append({
             "ID": row['ID'],
             "Name": editable_name,
-            "OriginalName": row['Name'], # לשמירת התאמת הקובץ המקורי
+            "OriginalName": row['Name'],
             "Price": editable_price,
             "Ingredients": editable_ingredients
         })
@@ -246,18 +252,17 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
         # ב. יצירת כרטיסיות ברמן (A4 - 3 בדף)
         cards_html = ""
         for item in selected_drinks_data:
-            # שימוש בפונקציה החכמה למציאת הקובץ
-            card_path, ext = find_card_file(item['OriginalName'])
+            # חיפוש חכם ואוניברסלי בכל תיקיות הפרויקט
+            card_path, ext = find_card_file_unbeatable(item['OriginalName'])
             
             if not card_path:
-                # ניסיון משני לפי השם שנערך בתפריט
-                card_path, ext = find_card_file(item['Name'])
+                card_path, ext = find_card_file_unbeatable(item['Name'])
 
             if card_path and os.path.exists(card_path):
                 with open(card_path, "rb") as card_file:
                     card_b64 = base64.b64encode(card_file.read()).decode("utf-8")
                 
-                mime_type = "image/png" if ext in ['.png', '.jpg', '.jpeg'] else "application/pdf"
+                mime_type = "application/pdf" if ext == '.pdf' else "image/png"
                 
                 if mime_type.startswith("image"):
                     cards_html += f"""
@@ -272,12 +277,11 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                     </div>
                     """
             else:
-                # מציג פירוט מדויק של מה שחסר כדי להקל על הדיבאג
                 cards_html += f"""
                 <div class="card-wrapper missing-card">
                     <h3>{item['Name']}</h3>
                     <p style="color:red; font-size:12pt;">
-                        שגיאה: לא נמצא קובץ תמונה/PDF עבור "{item['OriginalName']}" בתיקיית cards!
+                        שגיאה: לא נמצא קובץ גרפיקה עבור "{item['OriginalName']}" באף תיקייה בפרויקט!
                     </p>
                 </div>
                 """
