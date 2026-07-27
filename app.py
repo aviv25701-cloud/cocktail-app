@@ -12,9 +12,9 @@ st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – הפקת תפריטים וכרטיסיות ברמן ב-PDF בשניות.")
 
 # ==============================================================================
-# 🔗 קישור קבוע ומובנה לגוגל שיטס של העסק (הסוכנים לא צריכים להזין כלום!)
+# 🔗 קישור קבוע ומובנה לגוגל שיטס של העסק - מוכן ועובד!
 # ==============================================================================
-DEFAULT_GSHEET_URL = https://docs.google.com/spreadsheets/d/1i0k5wIIgleWMY8LyAJVwrfXywnNP2kKv4WjcNCIvyBE/edit?usp=sharing
+DEFAULT_GSHEET_URL = "https://docs.google.com/spreadsheets/d/1i0k5wIIgleWMY8LyAJVwrfXywnNP2kKv4WjcNCIvyBE/edit?usp=sharing"
 
 def get_csv_url(url):
     try:
