@@ -9,10 +9,9 @@ import urllib.parse
 import requests
 import json
 import random
-import re
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v4.5 AI", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v4.6 AI", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – התאמה אישית, עריכה בזמן אמת ומנוע עיצוב AI.")
@@ -20,7 +19,7 @@ st.write("מערכת חכמה לסוכני שטח – התאמה אישית, ע�
 # ==============================================================================
 # 🔗 קישור קבוע ומובנה לגוגל שיטס של העסק
 # ==============================================================================
-DEFAULT_GSHEET_URL = "[https://docs.google.com/spreadsheets/d/1i0k5wIIgleWMY8LyAJVwrfXywnNP2kKv4WjcNCIvyBE/edit?usp=sharing](https://docs.google.com/spreadsheets/d/1i0k5wIIgleWMY8LyAJVwrfXywnNP2kKv4WjcNCIvyBE/edit?usp=sharing)"
+DEFAULT_GSHEET_URL = "https://docs.google.com/spreadsheets/d/1i0k5wIIgleWMY8LyAJVwrfXywnNP2kKv4WjcNCIvyBE/edit?usp=sharing"
 
 # --- הגדרת מנוע Gemini API ---
 gemini_key = st.secrets.get("GEMINI_API_KEY", None)
@@ -31,7 +30,7 @@ def get_csv_url(url):
     try:
         if "/d/" in url:
             sheet_id = url.split("/d/")[1].split("/")[0]
-            return f"[https://docs.google.com/spreadsheets/d/](https://docs.google.com/spreadsheets/d/){sheet_id}/export?format=csv"
+            return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
     except Exception:
         pass
     return None
@@ -152,7 +151,7 @@ if bg_style == "🎨 עיצוב אומנותי אוטומטי ב-AI (הקלדת 
                 try:
                     system_instructions = """
                     You are an expert graphic designer for cocktail menus.
-                    Analyze the user's concept prompt and return ONLY a valid JSON object (without markdown code blocks) containing:
+                    Analyze the user's concept prompt and return ONLY a valid JSON object containing:
                     - bg_color: Hex color string for background (e.g. "#000000")
                     - text_color: Hex color string for text
                     - border_color: Hex color string for borders
@@ -179,6 +178,367 @@ if bg_style == "🎨 עיצוב אומנותי אוטומטי ב-AI (הקלדת 
                     if not response:
                         raise last_err or Exception("לא התקבל מענה מאף אחד מדגמי Gemini.")
 
-                    # ניקוי בטוח ועמיד מפני שגיאות מירכאות
-                    clean_res = response.text
-                    for fence in ["
+                    # גזירה ישירה של בלוק ה-JSON ללא תלות בגרשיים אחוריים
+                    raw_text = response.text
+                    start_pos = raw_text.find("{")
+                    end_pos = raw_text.rfind("}")
+                    
+                    if start_pos != -1 and end_pos != -1:
+                        clean_res = raw_text[start_pos:end_pos+1]
+                    else:
+                        clean_res = raw_text.strip()
+                    
+                    ai_config = json.loads(clean_res)
+                    
+                    st.session_state['ai_bg_color'] = ai_config.get('bg_color', '#000000')
+                    st.session_state['ai_text_color'] = ai_config.get('text_color', '#ffffff')
+                    st.session_state['ai_border_color'] = ai_config.get('border_color', '#ffffff')
+                    st.session_state['ai_line_color'] = ai_config.get('line_color', '#888888')
+                    st.session_state['ai_desc_color'] = ai_config.get('desc_color', '#cccccc')
+                    
+                    prompt_encoded = urllib.parse.quote(ai_config.get('image_prompt', 'abstract cocktail background'))
+                    seed = random.randint(1, 100000)
+                    pollinations_url = f"https://pollinations.ai/p/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
+                    
+                    img_res = requests.get(pollinations_url, timeout=15)
+                    if img_res.status_code == 200:
+                        st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
+                        st.success("🎉 העיצוב הופק בהצלחה על ידי ה-AI!")
+                    else:
+                        st.warning("פלטת הצבעים יוצרה, אך התמונה לא נטענה. יעשה שימוש בצבע הרקע שנבחר.")
+                        
+                except Exception as e:
+                    st.error(f"שגיאה בייצור עיצוב ה-AI: {e}")
+
+    if 'ai_bg_color' in st.session_state:
+        bg_color_css = f"background-color: {st.session_state['ai_bg_color']};"
+        text_color_css = st.session_state['ai_text_color']
+        border_color_css = st.session_state['ai_border_color']
+        line_color_css = st.session_state['ai_line_color']
+        desc_color_css = st.session_state['ai_desc_color']
+        if 'ai_bg_b64' in st.session_state:
+            bg_base64 = st.session_state['ai_bg_b64']
+
+elif bg_style == "שחור קלאסי (רקע שחור, מלל לבן)":
+    bg_color_css = "background-color: #000000;"
+    text_color_css = "#ffffff"
+    border_color_css = "#ffffff"
+    line_color_css = "#444444"
+    desc_color_css = "#cccccc"
+elif bg_style == "לבן קלאסי (רקע לבן, מלל שחור)":
+    bg_color_css = "background-color: #ffffff;"
+    text_color_css = "#111111"
+    border_color_css = "#111111"
+    line_color_css = "#cccccc"
+    desc_color_css = "#555555"
+elif bg_style == "התאמת צבעים אישית (חופשי)":
+    col_c1, col_c2, col_c3 = st.columns(3)
+    with col_c1:
+        custom_bg = st.color_picker("צבע רקע:", "#000000")
+        bg_color_css = f"background-color: {custom_bg};"
+    with col_c2:
+        text_color_css = st.color_picker("צבע טקסט וכותרת:", "#ffffff")
+    with col_c3:
+        border_color_css = st.color_picker("צבע מסגרת וקווים:", "#ffffff")
+    line_color_css = border_color_css
+    desc_color_css = text_color_css
+else:
+    uploaded_bg = st.file_uploader("העלה קובץ תמונת רקע (מומלץ במידות 130x240 מ\"מ):", type=["png", "jpg", "jpeg"], key="bg_uploader")
+    if uploaded_bg:
+        bg_base64 = base64.b64encode(uploaded_bg.read()).decode("utf-8")
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        text_color_css = st.color_picker("צבע טקסט:", "#ffffff")
+    with col_c2:
+        border_color_css = st.color_picker("צבע מסגרת:", "#ffffff")
+    line_color_css = border_color_css
+    desc_color_css = text_color_css
+
+border_option = st.radio("סגנון מסגרת סביב התפריט:", ["מסגרת עדינה (ברירת מחדל)", "מסגרת עבה", "ללא מסגרת"], horizontal=True)
+
+if border_option == "מסגרת עדינה (ברירת מחדל)":
+    border_style_css = f"border: 1.5px solid {border_color_css};"
+elif border_option == "מסגרת עבה":
+    border_style_css = f"border: 3.5px solid {border_color_css};"
+else:
+    border_style_css = "border: none;"
+
+st.markdown("---")
+st.subheader("3. לוגו והערות בתחתית (Footer)")
+
+col_l1, col_l2 = st.columns([2, 1])
+with col_l1:
+    uploaded_logo = st.file_uploader("העלה לוגו של בית העסק (PNG / JPG):", type=["png", "jpg", "jpeg"], key="logo_uploader")
+    auto_remove_bg = st.checkbox("🧹 הסר רקע לבן מהלוגו באופן אוטומטי", value=True)
+with col_l2:
+    footer_text = st.text_input("הערת שוליים בתחתית (רשות):", value="", placeholder="למשל: המחירים כוללים מע\"מ | ט.ל.ח")
+
+logo_base64 = ""
+if uploaded_logo:
+    logo_bytes = uploaded_logo.read()
+    if auto_remove_bg:
+        logo_bytes = remove_white_background(logo_bytes)
+    logo_base64 = base64.b64encode(logo_bytes).decode("utf-8")
+
+st.markdown("---")
+st.subheader("4. בחירת מוצרים, תמחור ועריכה בזמן אמת")
+
+selected_drinks_data = []
+
+for idx, row in df_cocktails.iterrows():
+    is_selected = st.checkbox(f"🍹 **{row['Name']}**", key=f"select_{row['ID']}")
+    
+    if is_selected:
+        with st.expander(f"עריכת פרטים עבור: {row['Name']}", expanded=True):
+            col_name, col_price = st.columns([3, 1])
+            with col_name:
+                editable_name = st.text_input("שם המשקה בתפריט:", value=row['Name'], key=f"name_edit_{row['ID']}")
+            with col_price:
+                editable_price = st.text_input("מחיר (₪):", value="45", key=f"price_edit_{row['ID']}")
+                
+            editable_ingredients = st.text_area("מרכיבים (הפרד באמצעות |):", value=row['Ingredients'], key=f"ing_edit_{row['ID']}")
+            
+        selected_drinks_data.append({
+            "ID": row['ID'],
+            "Name": editable_name,
+            "OriginalName": row['Name'],
+            "Price": editable_price,
+            "Ingredients": editable_ingredients
+        })
+
+st.markdown("---")
+
+if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות", use_container_width=True):
+    if not selected_drinks_data:
+        st.error("❌ אנא בחר לפחות קוקטייל אחד כדי להפיק קבצים!")
+    else:
+        menu_items_html = ""
+        for item in selected_drinks_data:
+            menu_items_html += f"""
+            <div class="menu-item">
+                <div class="item-header">
+                    <span class="item-name">{item['Name']}</span>
+                    <span class="item-line"></span>
+                    <span class="item-price">₪{item['Price']}</span>
+                </div>
+                <div class="item-desc">{item['Ingredients']}</div>
+            </div>
+            """
+
+        logo_html = f'<div class="logo-container"><img src="data:image/png;base64,{logo_base64}" class="logo"></div>' if logo_base64 else ''
+        footer_note_html = f'<div class="footer-note">{footer_text}</div>' if footer_text else ''
+        subtitle_html = f'<div class="subtitle">{menu_subtitle}</div>' if menu_subtitle else ''
+
+        bg_css_rule = f"background-image: url(data:image/png;base64,{bg_base64}); background-size: cover;" if bg_base64 else bg_color_css
+
+        menu_html = f"""
+        <!DOCTYPE html>
+        <html lang="he" dir="rtl">
+        <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{
+                size: 130mm 240mm;
+                margin: 12mm 10mm;
+                {bg_css_rule}
+            }}
+            * {{ box-sizing: border-box; }}
+            body, html {{
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                font-family: 'Arial', sans-serif;
+                color: {text_color_css};
+            }}
+            .menu-container {{
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                height: 100%;
+                {border_style_css}
+                padding: 15px;
+            }}
+            .header h1 {{
+                font-size: 20pt;
+                margin: 0;
+                color: {text_color_css};
+                text-align: {align_css};
+                letter-spacing: 1px;
+                text-transform: uppercase;
+            }}
+            .subtitle {{
+                font-size: 10pt;
+                text-align: {align_css};
+                color: {desc_color_css};
+                margin-top: 4px;
+                letter-spacing: 0.5px;
+            }}
+            .drinks-list {{
+                display: flex;
+                flex-direction: column;
+                justify-content: space-around;
+                flex-grow: 1;
+                margin: 15px 0;
+            }}
+            .menu-item {{ width: 100%; }}
+            .item-header {{ display: table; width: 100%; }}
+            .item-name {{
+                display: table-cell;
+                font-size: 11.5pt;
+                font-weight: bold;
+                white-space: nowrap;
+            }}
+            .item-line {{
+                display: table-cell;
+                width: 100%;
+                border-bottom: 1px dotted {line_color_css};
+                vertical-align: bottom;
+            }}
+            .item-price {{
+                display: table-cell;
+                font-size: 11.5pt;
+                font-weight: bold;
+                padding-right: 5px;
+            }}
+            .item-desc {{
+                font-size: 9pt;
+                color: {desc_color_css};
+                margin-top: 3px;
+                line-height: 1.3;
+            }}
+            .footer-section {{
+                text-align: center;
+                margin-top: auto;
+            }}
+            .footer-note {{
+                font-size: 8pt;
+                color: {desc_color_css};
+                margin-bottom: 5px;
+            }}
+            .logo-container {{
+                background: transparent !important;
+                background-color: transparent !important;
+            }}
+            .logo {{
+                max-height: 30mm;
+                max-width: 75mm;
+                object-fit: contain;
+                background: transparent !important;
+                border: none !important;
+            }}
+        </style>
+        </head>
+        <body>
+            <div class="menu-container">
+                <div class="header">
+                    <h1>{menu_title}</h1>
+                    {subtitle_html}
+                </div>
+                <div class="drinks-list">{menu_items_html}</div>
+                <div class="footer-section">
+                    {footer_note_html}
+                    {logo_html}
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        cards_html = ""
+        for item in selected_drinks_data:
+            card_path, ext = find_card_file_unbeatable(item['OriginalName'])
+            
+            if not card_path:
+                card_path, ext = find_card_file_unbeatable(item['Name'])
+
+            if card_path and os.path.exists(card_path):
+                with open(card_path, "rb") as card_file:
+                    card_b64 = base64.b64encode(card_file.read()).decode("utf-8")
+                
+                mime_type = "application/pdf" if ext == '.pdf' else "image/png"
+                
+                if mime_type.startswith("image"):
+                    cards_html += f"""
+                    <div class="card-wrapper">
+                        <img src="data:{mime_type};base64,{card_b64}" class="card-img">
+                    </div>
+                    """
+                else:
+                    cards_html += f"""
+                    <div class="card-wrapper">
+                        <embed src="data:{mime_type};base64,{card_b64}" type="application/pdf" class="card-img">
+                    </div>
+                    """
+            else:
+                cards_html += f"""
+                <div class="card-wrapper missing-card">
+                    <h3>{item['Name']}</h3>
+                    <p style="color:red; font-size:12pt;">
+                        שגיאה: לא נמצא קובץ גרפיקה עבור "{item['OriginalName']}" באף תיקייה בפרויקט!
+                    </p>
+                </div>
+                """
+
+        instructions_html = f"""
+        <!DOCTYPE html>
+        <html lang="he" dir="rtl">
+        <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{
+                size: A4;
+                margin: 0;
+            }}
+            * {{ box-sizing: border-box; }}
+            html, body {{
+                margin: 0;
+                padding: 0;
+                background-color: #ffffff;
+            }}
+            .card-wrapper {{
+                width: 210mm;
+                height: 98mm;
+                overflow: hidden;
+                display: block;
+                border-bottom: 1px dashed #999999;
+                page-break-inside: avoid;
+                margin: 0;
+                padding: 0;
+            }}
+            .card-wrapper:nth-child(3n) {{
+                border-bottom: none;
+                page-break-after: always;
+            }}
+            .card-img {{
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                border: none;
+                display: block;
+            }}
+            .missing-card {{
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                font-family: Arial, sans-serif;
+                border: 2px dashed red;
+            }}
+        </style>
+        </head>
+        <body>
+            {cards_html}
+        </body>
+        </html>
+        """
+
+        HTML(string=menu_html).write_pdf("temp_menu.pdf")
+        HTML(string=instructions_html).write_pdf("temp_instructions.pdf")
+
+        st.success("🎉 המסמכים הופקו בהצלחה!")
+
+        with open("temp_menu.pdf", "rb") as f_menu:
+            st.download_button("📥 הורד תפריט מוכן (130x240 מ\"מ)", data=f_menu, file_name="menu.pdf", mime="application/pdf", use_container_width=True)
+
+        with open("temp_instructions.pdf", "rb") as f_inst:
+            st.download_button("📥 הורד כרטיסיות ברמן מוכנות (A4)", data=f_inst, file_name="serving_cards.pdf", mime="application/pdf", use_container_width=True)
