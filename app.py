@@ -11,10 +11,10 @@ import json
 import random
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v6.0 Vision AI", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v7.0 Vision & Chat AI", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
-st.write("מערכת חכמה לסוכני שטח – התאמה אישית, עיצוב AI לפי רפרנס וייצוא PDF.")
+st.write("מערכת חכמה לסוכני שטח – התאמה אישית, עיצוב AI לפי רפרנס ודיוק בצ'אט.")
 
 # ==============================================================================
 # 🔗 קישור קבוע ומובנה לגוגל שיטס של העסק
@@ -113,12 +113,12 @@ menu_subtitle = st.text_input("תת-כותרת / תיאור קצר (רשות):",
 align_css = "center" if "מרכז" in text_align else "left" if "שמאל" in text_align else "right"
 
 st.markdown("---")
-st.subheader("2. עיצוב, צבעים ומנוע AI מתקדם")
+st.subheader("2. עיצוב, צבעים ומנוע AI מתקדם (Vision + Chat)")
 
 bg_style = st.selectbox(
     "בחר סגנון עיצוב לתפריט (130x240 מ\"מ):", 
     [
-        "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס)",
+        "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס / דיוק בצ'אט)",
         "שחור קלאסי (רקע שחור, מלל לבן)", 
         "לבן קלאסי (רקע לבן, מלל שחור)", 
         "התאמת צבעים אישית (חופשי)", 
@@ -133,24 +133,24 @@ border_color_css = "#ffffff"
 line_color_css = "#555555"
 desc_color_css = "#cccccc"
 
-# --- מנוע AI מתקדם עם תמיכה בתמונות רפרנס ---
-if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס)":
-    st.info("🤖 **מעצב ה-AI הריאליסטי מוכן!** תוכל להקליד תיאור חופשי ו/או להעלות תמונת השראה מהגלריה.")
+# --- מנוע AI מתקדם: יצירת תבנית ראשונית + דיוק בלולאת שיחה ---
+if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס / דיוק בצ'אט)":
+    st.info("🤖 **מעצב ה-AI מוכן!** העלה תמונת רפרנס ו/או תאר את האווירה. לאחר היצירה תוכל להמשיך לדייק אותו בצ'אט.")
     
     col_prompt, col_ref = st.columns([2, 1])
     with col_prompt:
         ai_prompt = st.text_area(
             "תאר את הקונספט או האווירה:", 
-            placeholder="למשל: מסעדת שף כפרית, אווירת עץ אלון חמימה, תאורה רכה..."
+            placeholder="למשל: תפריט לבר קוקטיילים יוקרתי, אווירה אפלולית, מרקם שיש כהה..."
         )
     with col_ref:
         ref_image_file = st.file_uploader("📷 תמונת רפרנס (רשות):", type=["png", "jpg", "jpeg"])
 
-    if st.button("🪄 הפיקו עיצוב ריאליסטי ב-AI", use_container_width=True):
+    if st.button("🪄 הפיקו עיצוב ראשוני ב-AI", use_container_width=True):
         if not ai_prompt and not ref_image_file:
             st.warning("אנא הקלד תיאור קצר או העלה תמונת רפרנס.")
         else:
-            with st.spinner("✨ מנוע ה-AI מנתח את הבקשה והרפרנס ומעצב את התפריט..."):
+            with st.spinner("✨ מנוע ה-Vision AI מנתח את הרפרנס והטקסט..."):
                 ai_config = None
                 
                 if gemini_key:
@@ -158,22 +158,23 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                         model = genai.GenerativeModel('gemini-1.5-flash')
                         
                         system_instructions = """
-                        You are a master luxury graphic designer for top-tier cocktail menus.
-                        Analyze the user request AND the reference image (if provided).
-                        Extract/generate a highly realistic, tasteful palette and a high-end photography/texture prompt.
+                        You are a master graphic designer strictly focused on professional COCKTAIL MENUS.
+                        Analyze the user request AND carefully examine the reference image if provided.
+                        You MUST derive the background mood, texture, and color scheme DIRECTLY from the reference image.
                         
-                        CRITICAL REQUIREMENTS FOR THE IMAGE PROMPT:
-                        - The background MUST be a realistic, tangible, real-world texture or setting (e.g. polished dark marble stone, rustic dark oak wood table, subtle warm candlelit bar bokeh, dark slate, fine linen paper).
-                        - STRICTLY AVOID space, sci-fi, abstract floating neon shapes, or cartoon graphics.
-                        - STRICTLY NO TEXT or words in the image.
+                        STRICT CONSTRAINTS:
+                        1. The theme is STRICTLY a cocktail menu background.
+                        2. NEVER generate floating random objects, space, sci-fi, or unrelated weird items.
+                        3. The image prompt MUST describe a clean, realistic, high-end texture or bar background (e.g. dark marble, oak wood, fine paper, subtle candlelit bokeh) suitable to display text on top.
+                        4. ABSOLUTELY NO TEXT or words in the background image.
                         
-                        Return ONLY a valid JSON object:
-                        - bg_color: Hex color for background
-                        - text_color: Hex color for main text
-                        - border_color: Hex color for borders/lines
-                        - line_color: Hex color for item lines
-                        - desc_color: Hex color for description text
-                        - image_prompt: Detailed English prompt describing a realistic, elegant, non-distracting background photography or texture.
+                        Return ONLY a valid JSON object containing:
+                        - bg_color: Hex color string for menu background
+                        - text_color: Hex color string for readable menu text
+                        - border_color: Hex color string for borders
+                        - line_color: Hex color string for line dividers
+                        - desc_color: Hex color string for drink descriptions
+                        - image_prompt: Detailed English prompt for an ultra-realistic background texture/photography matching the reference image and concept.
                         """
                         
                         prompt_contents = [f"{system_instructions}\nUser prompt: {ai_prompt}"]
@@ -191,7 +192,6 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                                 ai_config = json.loads(raw_text[start_pos:end_pos+1])
                     except Exception as e:
                         st.error(f"שגיאה בתקשורת מול ה-AI: {e}")
-                        ai_config = None
 
                 if not ai_config:
                     ai_config = {
@@ -200,7 +200,7 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                         "border_color": "#c5a059",
                         "line_color": "#c5a059",
                         "desc_color": "#dddddd",
-                        "image_prompt": f"Realistic high-end photography background of {ai_prompt or 'luxurious dark bar table'}, warm subtle lighting, ultra detailed, no text"
+                        "image_prompt": f"Luxury realistic dark texture background for cocktail menu inspired by {ai_prompt or 'high end bar'}, ultra clean, no objects, no text"
                     }
 
                 st.session_state['ai_bg_color'] = ai_config.get('bg_color', '#121212')
@@ -208,9 +208,10 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                 st.session_state['ai_border_color'] = ai_config.get('border_color', '#ffffff')
                 st.session_state['ai_line_color'] = ai_config.get('line_color', '#888888')
                 st.session_state['ai_desc_color'] = ai_config.get('desc_color', '#cccccc')
+                st.session_state['ai_image_prompt'] = ai_config.get('image_prompt', '')
                 
-                # מחולל תמונות באיכות גבוהה ומידות מותאמות לתפריט
-                prompt_encoded = urllib.parse.quote(ai_config.get('image_prompt', 'dark marble bar background'))
+                # יצירת תמונה
+                prompt_encoded = urllib.parse.quote(st.session_state['ai_image_prompt'])
                 seed = random.randint(1, 100000)
                 pollinations_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
                 
@@ -218,23 +219,81 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                     img_res = requests.get(pollinations_url, timeout=15)
                     if img_res.status_code == 200:
                         st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
-                        st.success("🎉 העיצוב הריאליסטי והרקע נוצרו בהצלחה!")
+                        st.success("🎉 העיצוב הופק בהצלחה בהתאם לרפרנס!")
                     else:
                         st.session_state['ai_bg_b64'] = ""
-                        st.success("🎉 פלטת הצבעים הותאמה בהצלחה!")
                 except Exception:
                     st.session_state['ai_bg_b64'] = ""
-                    st.success("🎉 פלטת הצבעים הותאמה בהצלחה!")
 
-    # --- תצוגה מקדימה על המסך ---
+    # --- מנגנון צ'אט והמשך דיוק העיצוב הקיים ---
     if 'ai_bg_color' in st.session_state:
+        st.markdown("---")
+        st.markdown("### 💬 לדייק ולשפר את העיצוב הקיים בצ'אט")
+        refine_input = st.text_input(
+            "רוצה לשנות משהו בעיצוב הנוכחי? הקלד הנחיות לדיוק:", 
+            placeholder="למשל: תהפוך את הרקע לכהה יותר, ותשנה את צבע הכתב לזהב מוברש..."
+        )
+        
+        if st.button("✏️ עדכן עיצוב לפי ההנחיות שלי", use_container_width=True):
+            if not refine_input:
+                st.warning("אנא הקלד הנחיה לשיפור העיצוב.")
+            else:
+                with st.spinner("🔄 מנוע ה-AI מעדכן את העיצוב הקיים לפי דרישתך..."):
+                    try:
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        update_instructions = f"""
+                        You are updating an existing cocktail menu design.
+                        Current design config:
+                        - Current background color: {st.session_state.get('ai_bg_color')}
+                        - Current text color: {st.session_state.get('ai_text_color')}
+                        - Current image prompt: {st.session_state.get('ai_image_prompt')}
+                        
+                        User refinement request: "{refine_input}"
+                        
+                        Modify the colors and image prompt according to the user request.
+                        Return ONLY a valid JSON object with the updated fields:
+                        - bg_color
+                        - text_color
+                        - border_color
+                        - line_color
+                        - desc_color
+                        - image_prompt (refined English prompt, no text, realistic cocktail menu background)
+                        """
+                        res = model.generate_content(update_instructions)
+                        if res and res.text:
+                            raw_text = res.text
+                            start_pos = raw_text.find("{")
+                            end_pos = raw_text.rfind("}")
+                            if start_pos != -1 and end_pos != -1:
+                                updated_config = json.loads(raw_text[start_pos:end_pos+1])
+                                
+                                st.session_state['ai_bg_color'] = updated_config.get('bg_color', st.session_state['ai_bg_color'])
+                                st.session_state['ai_text_color'] = updated_config.get('text_color', st.session_state['ai_text_color'])
+                                st.session_state['ai_border_color'] = updated_config.get('border_color', st.session_state['ai_border_color'])
+                                st.session_state['ai_line_color'] = updated_config.get('line_color', st.session_state['ai_line_color'])
+                                st.session_state['ai_desc_color'] = updated_config.get('desc_color', st.session_state['ai_desc_color'])
+                                st.session_state['ai_image_prompt'] = updated_config.get('image_prompt', st.session_state['ai_image_prompt'])
+                                
+                                # יצירת התמונה המעודכנת
+                                prompt_encoded = urllib.parse.quote(st.session_state['ai_image_prompt'])
+                                seed = random.randint(1, 100000)
+                                pollinations_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
+                                
+                                img_res = requests.get(pollinations_url, timeout=15)
+                                if img_res.status_code == 200:
+                                    st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
+                                st.success("✨ העיצוב עודכן בהצלחה!")
+                    except Exception as e:
+                        st.error(f"שגיאה בעדכון העיצוב: {e}")
+
+        # --- תצוגה מקדימה חזותית מפורטת ---
         bg_color_css = f"background-color: {st.session_state['ai_bg_color']};"
         text_color_css = st.session_state['ai_text_color']
         border_color_css = st.session_state['ai_border_color']
         line_color_css = st.session_state['ai_line_color']
         desc_color_css = st.session_state['ai_desc_color']
         
-        st.markdown("#### 🎨 פלטת צבעים ותצוגה מקדימה שנבחרה:")
+        st.markdown("#### 🎨 תצוגה מקדימה של פלטת הצבעים והרקע:")
         c1, c2, c3 = st.columns(3)
         with c1:
             st.color_picker("צבע רקע:", st.session_state['ai_bg_color'], disabled=True, key="pv_bg")
