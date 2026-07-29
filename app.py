@@ -5,16 +5,26 @@ import base64
 import os
 from PIL import Image
 import io
+import urllib.parse
+import requests
+import json
+import random
+import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v3.1", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v4.0 AI", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
-st.write("מערכת חכמה לסוכני שטח – הפקת תפריטים וכרטיסיות ברמן ב-PDF בשניות.")
+st.write("מערכת חכמה לסוכני שטח – התאמה אישית, עריכה בזמן אמת ומנוע עיצוב AI.")
 
 # ==============================================================================
-# 🔗 קישור קבוע ומובנה לגוגל שיטס של העסק - מוכן ועובד!
+# 🔗 קישור קבוע ומובנה לגוגל שיטס של העסק
 # ==============================================================================
 DEFAULT_GSHEET_URL = "https://docs.google.com/spreadsheets/d/1i0k5wIIgleWMY8LyAJVwrfXywnNP2kKv4WjcNCIvyBE/edit?usp=sharing"
+
+# --- הגדרת מנוע Gemini API ---
+gemini_key = st.secrets.get("GEMINI_API_KEY", None)
+if gemini_key:
+    genai.configure(api_key=gemini_key)
 
 def get_csv_url(url):
     try:
@@ -101,11 +111,17 @@ menu_subtitle = st.text_input("תת-כותרת / תיאור קצר (רשות):",
 align_css = "center" if "מרכז" in text_align else "left" if "שמאל" in text_align else "right"
 
 st.markdown("---")
-st.subheader("2. עיצוב, צבעים ומסגרת")
+st.subheader("2. עיצוב, צבעים ומנוע AI")
 
 bg_style = st.selectbox(
     "בחר סגנון עיצוב לתפריט (130x240 מ\"מ):", 
-    ["שחור קלאסי (רקע שחור, מלל לבן)", "לבן קלאסי (רקע לבן, מלל שחור)", "התאמת צבעים אישית (חופשי)", "רקע תמונה מותאם אישית (העלאת קובץ)"]
+    [
+        "🎨 עיצוב אומנותי אוטומטי ב-AI (הקלדת תיאור חופשי)",
+        "שחור קלאסי (רקע שחור, מלל לבן)", 
+        "לבן קלאסי (רקע לבן, מלל שחור)", 
+        "התאמת צבעים אישית (חופשי)", 
+        "רקע תמונה מותאם אישית (העלאת קובץ)"
+    ]
 )
 
 bg_base64 = ""
@@ -115,7 +131,71 @@ border_color_css = "#ffffff"
 line_color_css = "#555555"
 desc_color_css = "#cccccc"
 
-if bg_style == "שחור קלאסי (רקע שחור, מלל לבן)":
+# --- טיפול בייצור עיצוב AI ---
+if bg_style == "🎨 עיצוב אומנותי אוטומטי ב-AI (הקלדת תיאור חופשי)":
+    st.info("🤖 **מעצב ה-AI מוכן!** הקלד את האווירה/הנושא המבוקש והמערכת תייצר עבורך פלטת צבעים ורקע ייחודי.")
+    ai_prompt = st.text_area(
+        "תאר את הקונספט או האווירה של האירוע/הבר:", 
+        placeholder="למשל: מסיבת שקיעה בחוף במיקונוס, צבעי תכלת וזהב, קליל ויוקרתי..."
+    )
+    
+    if st.button("🪄 הפיקו עיצוב ב-AI", use_container_width=True):
+        if not ai_prompt:
+            st.warning("אנא הקלד תיאור קצר כדי שה-AI יידע מה לעצב.")
+        elif not gemini_key:
+            st.error("מפתח GEMINI_API_KEY חסר ב-Secrets של Streamlit.")
+        else:
+            with st.spinner("✨ מנוע ה-AI מעצב כעת את התפריט..."):
+                try:
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    system_instructions = """
+                    You are an expert graphic designer for cocktail menus.
+                    Analyze the user's concept prompt and return ONLY a valid JSON object (without markdown code blocks) containing:
+                    - bg_color: Hex color string for background (e.g. "#000000")
+                    - text_color: Hex color string for text
+                    - border_color: Hex color string for borders
+                    - line_color: Hex color string for lines
+                    - desc_color: Hex color string for descriptions
+                    - image_prompt: A detailed English prompt describing an artistic, atmospheric background graphic with NO text, suitable for a menu background.
+                    """
+                    
+                    response = model.generate_content(f"{system_instructions}\nUser concept: {ai_prompt}")
+                    clean_res = response.text.replace("```json", "").replace("```", "").strip()
+                    ai_config = json.loads(clean_res)
+                    
+                    # שמירת ההגדרות ב-session state
+                    st.session_state['ai_bg_color'] = ai_config.get('bg_color', '#000000')
+                    st.session_state['ai_text_color'] = ai_config.get('text_color', '#ffffff')
+                    st.session_state['ai_border_color'] = ai_config.get('border_color', '#ffffff')
+                    st.session_state['ai_line_color'] = ai_config.get('line_color', '#888888')
+                    st.session_state['ai_desc_color'] = ai_config.get('desc_color', '#cccccc')
+                    
+                    # יצירת תמונת רקע ב-AI בחינם דרך Pollinations
+                    prompt_encoded = urllib.parse.quote(ai_config.get('image_prompt', 'abstract cocktail background'))
+                    seed = random.randint(1, 100000)
+                    pollinations_url = f"https://pollinations.ai/p/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
+                    
+                    img_res = requests.get(pollinations_url, timeout=15)
+                    if img_res.status_code == 200:
+                        st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
+                        st.success("🎉 העיצוב הופק בהצלחה על ידי ה-AI!")
+                    else:
+                        st.warning("פלטת הצבעים יוצרה, אך התמונה לא נטענה. יעשה שימוש בצבע הרקע שנבחר.")
+                        
+                except Exception as e:
+                    st.error(f"שגיאה בייצור עיצוב ה-AI: {e}")
+
+    # שימוש בהגדרות שנוצרו על ידי ה-AI
+    if 'ai_bg_color' in st.session_state:
+        bg_color_css = f"background-color: {st.session_state['ai_bg_color']};"
+        text_color_css = st.session_state['ai_text_color']
+        border_color_css = st.session_state['ai_border_color']
+        line_color_css = st.session_state['ai_line_color']
+        desc_color_css = st.session_state['ai_desc_color']
+        if 'ai_bg_b64' in st.session_state:
+            bg_base64 = st.session_state['ai_bg_b64']
+
+elif bg_style == "שחור קלאסי (רקע שחור, מלל לבן)":
     bg_color_css = "background-color: #000000;"
     text_color_css = "#ffffff"
     border_color_css = "#ffffff"
