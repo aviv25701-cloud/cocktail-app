@@ -12,10 +12,10 @@ import random
 import re
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v12.0 Ultra Fast", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v13.0 Clean BG", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
-st.write("מערכת חכמה לסוכני שטח – התאמה אישית, טיפוגרפיה מתקדמת, עיצוב AI וייצוא PDF.")
+st.write("מערכת חכמה לסוכני שטח – התאמה אישית, טיפוגרפיה מתקדמת, רקעים נקיים וייצוא PDF.")
 
 # ==============================================================================
 # 🔗 קישור קבוע ומובנה לגוגל שיטס של העסק
@@ -57,42 +57,39 @@ if df_cocktails is None or df_cocktails.empty:
     st.error("⚠️ לא ניתן לטעון את מאגר הקוקטיילים. אנא ודא שקישור הגוגל שיטס תקין וציבורי.")
     st.stop()
 
-# --- פונקציית מניעת עברית ב-URL (תרגום חירום אוטומטי) ---
-def clean_and_translate_prompt(text):
+# --- פונקציה חכמה לכפיית רקע נקי, חלק וללא אובייקטים ---
+def build_guarded_clean_prompt(text):
     if not text:
-        return "dark luxury cocktail menu background, realistic texture"
-    
-    # מילון המרה מהיר למקרה שה-API לא החזיר אנגלית
-    dictionary = {
-        "כוס": "cocktail glass",
-        "קוקטייל": "cocktail drink",
-        "כוסות": "cocktail glasses",
-        "מרכז": "in the center",
-        "שיש": "marble texture",
-        "עץ": "wood texture",
-        "כהה": "dark background",
-        "בהיר": "light background",
-        "זהב": "gold accents",
-        "יוקרתי": "luxurious atmosphere",
-        "בר": "bar counter background",
-        "תוסיף": "add",
-        "תוריד": "remove",
-        "תשנה": "change color to"
-    }
-    
-    words = text.split()
-    english_parts = []
-    for w in words:
-        clean_w = re.sub(r'[^\w\s]', '', w)
-        if clean_w in dictionary:
-            english_parts.append(dictionary[clean_w])
-        elif re.match(r'^[a-zA-Z0-9\s,-]+$', w):
-            english_parts.append(w)
-            
-    result = " ".join(english_parts)
-    if not result.strip():
-        result = "dark luxury cocktail menu background"
-    return f"cocktail menu background, {result}"
+        base_desc = "dark luxury marble texture"
+    else:
+        # מילון תרגום מהיר למילות מפתח
+        dictionary = {
+            "שיש": "marble texture",
+            "עץ": "rustic wood texture",
+            "כהה": "dark dark background",
+            "בהיר": "light clean background",
+            "זהב": "subtle gold veins",
+            "יוקרתי": "luxurious background",
+            "בטון": "smooth concrete texture",
+            "פשתן": "linen paper texture",
+            "שחור": "solid black texture",
+            "חלק": "smooth plain background"
+        }
+        
+        words = str(text).split()
+        translated = []
+        for w in words:
+            clean_w = re.sub(r'[^\w\s]', '', w)
+            if clean_w in dictionary:
+                translated.append(dictionary[clean_w])
+            elif re.match(r'^[a-zA-Z0-9\s,-]+$', w):
+                translated.append(w)
+                
+        base_desc = " ".join(translated) if translated else "dark elegant texture"
+        
+    # הנחיה קשיחה למנוע התמונות לקבלת רקע חלק ונקי 100%
+    strict_clean_suffix = "minimalist plain surface texture, subtle smooth background, full bleed, no objects, no glasses, no cups, no frames, no borders, no chalkboards, no text, no drawings, no clutter"
+    return f"{base_desc}, {strict_clean_suffix}"
 
 # --- פונקציית סריקה רקורסיבית מקיפה וחכמה ---
 def find_card_file_unbeatable(drink_name):
@@ -169,7 +166,7 @@ st.subheader("2. עיצוב, צבעים ומנוע AI")
 bg_style = st.selectbox(
     "בחר סגנון עיצוב לתפריט (130x240 מ\"מ):", 
     [
-        "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס / דיוק בצ'אט)",
+        "🎨 עיצוב חכם ב-AI (רקע חלק ונקי / תמונת רפרנס / דיוק בצ'אט)",
         "שחור קלאסי (רקע שחור, מלל לבן)", 
         "לבן קלאסי (רקע לבן, מלל שחור)", 
         "התאמת צבעים אישית (חופשי)", 
@@ -184,32 +181,35 @@ border_color_css = "#ffffff"
 line_color_css = "#555555"
 desc_color_css = "#cccccc"
 
-if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס / דיוק בצ'אט)":
-    st.info("🤖 **מעצב ה-AI מוכן!** העלה תמונת רפרנס ו/או תאר את האווירה. לאחר היצירה תוכל להמשיך לדייק אותו בצ'אט.")
+if bg_style == "🎨 עיצוב חכם ב-AI (רקע חלק ונקי / תמונת רפרנס / דיוק בצ'אט)":
+    st.info("🤖 **מעצב ה-AI מוכן!** המערכת תייצר עבורך רקע חלק, נקי ומקצועי ללא קשקושים או אובייקטים מסיחים.")
     
     col_prompt, col_ref = st.columns([2, 1])
     with col_prompt:
         ai_prompt = st.text_area(
             "תאר את הקונספט או האווירה:", 
-            placeholder="למשל: תפריט לבר קוקטיילים יוקרתי, מרקם שיש כהה..."
+            placeholder="למשל: מרקם שיש שחור חלק עם נגיעות זהב עדינות..."
         )
     with col_ref:
         ref_image_file = st.file_uploader("📷 תמונת רפרנס (רשות):", type=["png", "jpg", "jpeg"])
 
-    if st.button("🪄 הפיקו עיצוב ראשוני ב-AI", use_container_width=True):
+    if st.button("🪄 הפיקו עיצוב חלק ב-AI", use_container_width=True):
         if not ai_prompt and not ref_image_file:
             st.warning("אנא הקלד תיאור קצר או העלה תמונת רפרנס.")
         else:
-            with st.spinner("✨ מנוע ה-AI מעצב את התפריט..."):
+            with st.spinner("✨ מנוע ה-AI מייצר רקע חלק ונקי..."):
                 ai_config = None
                 
                 if gemini_key:
                     system_instructions = """
-                    Graphic designer for cocktail menus.
-                    Analyze user prompt/image and return ONLY a JSON object:
-                    {"bg_color": "#...", "text_color": "#...", "border_color": "#...", "line_color": "#...", "desc_color": "#...", "image_prompt": "English prompt for background image"}
+                    Graphic designer for high-end cocktail menus.
+                    CRITICAL: Generate a FLAT, CLEAN, MINIMALIST background texture ONLY.
+                    NO glasses, NO bottles, NO frames, NO center objects, NO chalkboards, NO text.
+                    
+                    Return ONLY a JSON object:
+                    {"bg_color": "#...", "text_color": "#...", "border_color": "#...", "line_color": "#...", "desc_color": "#...", "image_prompt": "English prompt for clean flat background texture"}
                     """
-                    prompt_contents = [f"{system_instructions}\nPrompt: {ai_prompt}"]
+                    prompt_contents = [f"{system_instructions}\nUser request: {ai_prompt}"]
                     if ref_image_file:
                         prompt_contents.append(Image.open(ref_image_file))
                     
@@ -230,7 +230,7 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                         "border_color": "#c5a059",
                         "line_color": "#c5a059",
                         "desc_color": "#dddddd",
-                        "image_prompt": clean_and_translate_prompt(ai_prompt)
+                        "image_prompt": ai_prompt or "dark marble texture"
                     }
 
                 st.session_state['ai_bg_color'] = ai_config.get('bg_color', '#121212')
@@ -240,8 +240,9 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                 st.session_state['ai_desc_color'] = ai_config.get('desc_color', '#cccccc')
                 st.session_state['ai_image_prompt'] = ai_config.get('image_prompt', 'dark marble texture')
                 
-                clean_english_prompt = clean_and_translate_prompt(st.session_state['ai_image_prompt'])
-                prompt_encoded = urllib.parse.quote(clean_english_prompt)
+                # הפעלת מנוע החסימה לרקע חלק ונקי
+                guarded_prompt = build_guarded_clean_prompt(st.session_state['ai_image_prompt'])
+                prompt_encoded = urllib.parse.quote(guarded_prompt)
                 seed = random.randint(1, 999999)
                 pollinations_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
                 
@@ -253,47 +254,47 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                     st.session_state['ai_bg_b64'] = ""
                 st.rerun()
 
-    # --- מנגנון צ'אט מעודכן וחסין תקלות ---
+    # --- מנגנון צ'אט עם כפיית רקע חלק ונקי ---
     if 'ai_bg_color' in st.session_state:
         st.markdown("---")
         st.markdown("### 💬 לדייק ולשפר את העיצוב הקיים בצ'אט")
         refine_input = st.text_input(
             "רוצה לשנות משהו בעיצוב הנוכחי? הקלד הנחיות לדיוק:", 
-            placeholder="למשל: תעשה את הרקע כהה יותר, תוסיף כוס קוקטייל..."
+            placeholder="למשל: תעשה את הרקע כהה יותר, תשנה למרקם עץ..."
         )
         
         if st.button("✏️ עדכן עיצוב לפי ההנחיות שלי", use_container_width=True):
             if not refine_input:
                 st.warning("אנא הקלד הנחיה לשיפור העיצוב.")
             else:
-                with st.spinner("🔄 מנוע ה-AI מעדכן את הגרפיקה..."):
+                with st.spinner("🔄 מעדכן לרקע חלק ונקי..."):
                     current_prompt = st.session_state.get('ai_image_prompt', 'dark marble background')
                     
                     translation_prompt = f"""
-                    Convert Hebrew design tweak to English image prompt.
+                    Convert Hebrew design tweak into English prompt for FLAT CLEAN BACKGROUND TEXTURE ONLY.
                     Current prompt: "{current_prompt}"
                     Hebrew tweak: "{refine_input}"
-                    Return ONLY JSON: {{"updated_prompt": "clear english image prompt with tweaks"}}
+                    Return ONLY JSON: {{"updated_prompt": "english clean texture prompt"}}
                     """
                     
                     res_text = safe_gemini_generate([translation_prompt])
-                    updated_prompt_en = ""
+                    updated_prompt_en = f"{current_prompt} {refine_input}"
+                    
                     if res_text:
                         start_pos = res_text.find("{")
                         end_pos = res_text.rfind("}")
                         if start_pos != -1 and end_pos != -1:
                             try:
                                 parsed = json.loads(res_text[start_pos:end_pos+1])
-                                updated_prompt_en = parsed.get("updated_prompt", "")
+                                updated_prompt_en = parsed.get("updated_prompt", updated_prompt_en)
                             except Exception:
                                 pass
 
-                    if not updated_prompt_en:
-                        updated_prompt_en = clean_and_translate_prompt(f"{current_prompt} {refine_input}")
-
                     st.session_state['ai_image_prompt'] = updated_prompt_en
                     
-                    prompt_encoded = urllib.parse.quote(updated_prompt_en)
+                    # הפעלת מנוע החסימה לרקע חלק
+                    guarded_prompt = build_guarded_clean_prompt(updated_prompt_en)
+                    prompt_encoded = urllib.parse.quote(guarded_prompt)
                     seed = random.randint(1, 999999)
                     pollinations_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
                     
@@ -312,7 +313,7 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
         line_color_css = st.session_state['ai_line_color']
         desc_color_css = st.session_state['ai_desc_color']
         
-        st.markdown("#### 🎨 תצוגה מקדימה של פלטת הצבעים והרקע:")
+        st.markdown("#### 🎨 תצוגה מקדימה של פלטת הצבעים והרקע החלק:")
         c1, c2, c3 = st.columns(3)
         with c1:
             st.color_picker("צבע רקע:", st.session_state['ai_bg_color'], disabled=True, key="pv_bg")
@@ -325,7 +326,7 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
             bg_base64 = st.session_state['ai_bg_b64']
             st.image(
                 base64.b64decode(st.session_state['ai_bg_b64']), 
-                caption="🖼️ תמונת הרקע שנוצרה לתפריט", 
+                caption="🖼️ תמונת הרקע החלקה והנקייה שנוצרה לתפריט", 
                 use_container_width=True
             )
 
