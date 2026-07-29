@@ -11,10 +11,10 @@ import json
 import random
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v10.0 Final", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v11.0 Pro Layout", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
-st.write("מערכת חכמה לסוכני שטח – התאמה אישית, עיצוב AI לפי רפרנס וייצוא PDF מושלם.")
+st.write("מערכת חכמה לסוכני שטח – התאמה אישית, טיפוגרפיה מתקדמת, עיצוב AI וייצוא PDF.")
 
 # ==============================================================================
 # 🔗 קישור קבוע ומובנה לגוגל שיטס של העסק
@@ -126,7 +126,7 @@ menu_subtitle = st.text_input("תת-כותרת / תיאור קצר (רשות):",
 align_css = "center" if "מרכז" in text_align else "left" if "שמאל" in text_align else "right"
 
 st.markdown("---")
-st.subheader("2. עיצוב, צבעים ומנוע AI מתקדם")
+st.subheader("2. עיצוב, צבעים ומנוע AI")
 
 bg_style = st.selectbox(
     "בחר סגנון עיצוב לתפריט (130x240 מ\"מ):", 
@@ -214,14 +214,14 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                 pollinations_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
                 
                 try:
-                    img_res = requests.get(pollinations_url, timeout=7)
+                    img_res = requests.get(pollinations_url, timeout=8)
                     if img_res.status_code == 200:
                         st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
                 except Exception:
                     st.session_state['ai_bg_b64'] = ""
                 st.rerun()
 
-    # --- מנגנון צ'אט מהיר וחסין תקיעות ---
+    # --- מנגנון צ'אט עם תרגום ועיבוד אקטיבי ב-Gemini ---
     if 'ai_bg_color' in st.session_state:
         st.markdown("---")
         st.markdown("### 💬 לדייק ולשפר את העיצוב הקיים בצ'אט")
@@ -234,19 +234,47 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
             if not refine_input:
                 st.warning("אנא הקלד הנחיה לשיפור העיצוב.")
             else:
-                with st.spinner("🔄 מעדכן עיצוב..."):
-                    current_prompt = st.session_state.get('ai_image_prompt', 'dark marble texture background')
+                with st.spinner("🔄 מנוע ה-AI מתרגם ומעדכן את הגרפיקה..."):
+                    current_prompt = st.session_state.get('ai_image_prompt', 'dark marble background')
                     
-                    # עדכון מיידי של הפרומפט
-                    new_prompt = f"{current_prompt}, {refine_input}"
-                    st.session_state['ai_image_prompt'] = new_prompt
+                    # תרגום ועיבוד ההנחיה בעברית לאנגלית מקצועית
+                    translation_prompt = f"""
+                    You are an AI graphic design prompt builder.
+                    Current image prompt: "{current_prompt}"
+                    User requested change (in Hebrew): "{refine_input}"
                     
-                    prompt_encoded = urllib.parse.quote(new_prompt)
+                    Task: Rewrite the image prompt in clear English incorporating the user request.
+                    Return ONLY a JSON object:
+                    {{
+                        "updated_prompt": "new english image prompt",
+                        "bg_color": "{st.session_state.get('ai_bg_color')}",
+                        "text_color": "{st.session_state.get('ai_text_color')}"
+                    }}
+                    """
+                    
+                    res_text = safe_gemini_generate([translation_prompt])
+                    updated_prompt = f"{current_prompt}, {refine_input}"
+                    
+                    if res_text:
+                        start_pos = res_text.find("{")
+                        end_pos = res_text.rfind("}")
+                        if start_pos != -1 and end_pos != -1:
+                            try:
+                                parsed = json.loads(res_text[start_pos:end_pos+1])
+                                updated_prompt = parsed.get("updated_prompt", updated_prompt)
+                                if "bg_color" in parsed: st.session_state['ai_bg_color'] = parsed['bg_color']
+                                if "text_color" in parsed: st.session_state['ai_text_color'] = parsed['text_color']
+                            except Exception:
+                                pass
+
+                    st.session_state['ai_image_prompt'] = updated_prompt
+                    
+                    prompt_encoded = urllib.parse.quote(updated_prompt)
                     seed = random.randint(1, 999999)
                     pollinations_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
                     
                     try:
-                        img_res = requests.get(pollinations_url, timeout=7)
+                        img_res = requests.get(pollinations_url, timeout=10)
                         if img_res.status_code == 200:
                             st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
                     except Exception:
@@ -254,7 +282,6 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                         
                     st.rerun()
 
-        # --- תצוגה מקדימה ---
         bg_color_css = f"background-color: {st.session_state['ai_bg_color']};"
         text_color_css = st.session_state['ai_text_color']
         border_color_css = st.session_state['ai_border_color']
@@ -322,8 +349,40 @@ elif border_option == "מסגרת עבה":
 else:
     border_style_css = "border: none;"
 
+# ==============================================================================
+# 🔤 3. הגדרות טיפוגרפיה, גודל פונט, מרווחים וצבעים (חדש!)
+# ==============================================================================
 st.markdown("---")
-st.subheader("3. לוגו והערות בתחתית (Footer)")
+st.subheader("3. עיצוב טקסט, פונטים ומרווחים (שליטת סוכן מלאה)")
+
+with st.expander("🛠️ לחץ כאן לשינוי פונט, גודל גופנים, מרווחים וצבעים", expanded=True):
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        font_family = st.selectbox(
+            "סוג גופן (Font Family):", 
+            ["Heebo", "Assistant", "Rubik", "Varela Round", "Frank Ruhl Libre", "Arial"]
+        )
+    with col_f2:
+        custom_text_color = st.color_picker("דריסת צבע טקסט (רשות):", value=text_color_css)
+
+    col_s1, col_s2, col_s3 = st.columns(3)
+    with col_s1:
+        title_font_size = st.slider("גודל כותרת ראשית (pt):", min_value=14, max_value=32, value=20)
+    with col_s2:
+        item_font_size = st.slider("גודל שם משקה (pt):", min_value=9, max_value=20, value=12)
+    with col_s3:
+        desc_font_size = st.slider("גודל תיאור מרכיבים (pt):", min_value=7, max_value=14, value=9)
+
+    col_m1, col_m2 = st.columns(2)
+    with col_m1:
+        line_height_val = st.slider("מרווח בין שורות (Line Height):", min_value=1.0, max_value=2.2, value=1.3, step=0.1)
+    with col_m2:
+        item_spacing_val = st.slider("מרווח אנכי בין מוצרים (px):", min_value=2, max_value=25, value=8)
+
+final_text_color = custom_text_color
+
+st.markdown("---")
+st.subheader("4. לוגו והערות בתחתית (Footer)")
 
 col_l1, col_l2 = st.columns([2, 1])
 with col_l1:
@@ -340,7 +399,7 @@ if uploaded_logo:
     logo_base64 = base64.b64encode(logo_bytes).decode("utf-8")
 
 st.markdown("---")
-st.subheader("4. בחירת מוצרים, תמחור ועריכה בזמן אמת")
+st.subheader("5. בחירת מוצרים, תמחור ועריכה בזמן אמת")
 
 selected_drinks_data = []
 
@@ -373,7 +432,6 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
     else:
         menu_items_html = ""
         for item in selected_drinks_data:
-            # בדיקת תמחור גמישה: אם שדה המחיר ריק - לא מציגים ₪ בכלל!
             raw_price = str(item['Price']).strip()
             if raw_price:
                 price_display = raw_price if raw_price.startswith("₪") else f"₪{raw_price}"
@@ -397,13 +455,15 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
 
         bg_css_rule = f"background-image: url(data:image/png;base64,{bg_base64}); background-size: cover; background-position: center;" if bg_base64 else bg_color_css
 
-        # CSS נקי: ללא קו נקודות (.item-line נטול border-bottom)
+        # HTML + CSS מתוקן התומך בפונטים מגוגל, מרווחים וגודל דינמי
         menu_html = f"""
         <!DOCTYPE html>
         <html lang="he" dir="rtl">
         <head>
         <meta charset="UTF-8">
         <style>
+            @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&family=Frank+Ruhl+Libre:wght@400;700&family=Heebo:wght@400;700&family=Rubik:wght@400;700&family=Varela+Round&display=swap');
+            
             @page {{
                 size: 130mm 240mm;
                 margin: 0;
@@ -415,8 +475,8 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 margin: 0;
                 padding: 0;
                 {bg_css_rule}
-                font-family: 'Arial', sans-serif;
-                color: {text_color_css};
+                font-family: '{font_family}', sans-serif;
+                color: {final_text_color};
             }}
             .menu-container {{
                 display: flex;
@@ -432,12 +492,12 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 margin-bottom: 10px;
             }}
             .header h1 {{
-                font-size: 20pt;
+                font-size: {title_font_size}pt;
                 margin: 0;
-                color: {text_color_css};
+                color: {final_text_color};
                 letter-spacing: 1px;
                 text-transform: uppercase;
-                line-height: 1.1;
+                line-height: {line_height_val};
             }}
             .subtitle {{
                 font-size: 10pt;
@@ -454,7 +514,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
             }}
             .menu-item {{ 
                 width: 100%; 
-                margin-bottom: 8px;
+                margin-bottom: {item_spacing_val}px;
             }}
             .item-header {{ 
                 display: table; 
@@ -462,28 +522,27 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
             }}
             .item-name {{
                 display: table-cell;
-                font-size: 11.5pt;
+                font-size: {item_font_size}pt;
                 font-weight: bold;
                 white-space: nowrap;
             }}
             .item-line {{
                 display: table-cell;
                 width: 100%;
-                /* הוסרו הנקודות המקשרות לקבלת מראה נקי */
             }}
             .item-price {{
                 display: table-cell;
-                font-size: 11.5pt;
+                font-size: {item_font_size}pt;
                 font-weight: bold;
                 padding-right: 8px;
                 white-space: nowrap;
                 text-align: left;
             }}
             .item-desc {{
-                font-size: 9pt;
+                font-size: {desc_font_size}pt;
                 color: {desc_color_css};
                 margin-top: 3px;
-                line-height: 1.3;
+                line-height: {line_height_val};
             }}
             .footer-section {{
                 text-align: center;
