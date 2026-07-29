@@ -9,9 +9,10 @@ import urllib.parse
 import requests
 import json
 import random
+import re
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v4.4 AI", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v4.5 AI", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – התאמה אישית, עריכה בזמן אמת ומנוע עיצוב AI.")
@@ -19,7 +20,7 @@ st.write("מערכת חכמה לסוכני שטח – התאמה אישית, ע�
 # ==============================================================================
 # 🔗 קישור קבוע ומובנה לגוגל שיטס של העסק
 # ==============================================================================
-DEFAULT_GSHEET_URL = "https://docs.google.com/spreadsheets/d/1i0k5wIIgleWMY8LyAJVwrfXywnNP2kKv4WjcNCIvyBE/edit?usp=sharing"
+DEFAULT_GSHEET_URL = "[https://docs.google.com/spreadsheets/d/1i0k5wIIgleWMY8LyAJVwrfXywnNP2kKv4WjcNCIvyBE/edit?usp=sharing](https://docs.google.com/spreadsheets/d/1i0k5wIIgleWMY8LyAJVwrfXywnNP2kKv4WjcNCIvyBE/edit?usp=sharing)"
 
 # --- הגדרת מנוע Gemini API ---
 gemini_key = st.secrets.get("GEMINI_API_KEY", None)
@@ -30,7 +31,7 @@ def get_csv_url(url):
     try:
         if "/d/" in url:
             sheet_id = url.split("/d/")[1].split("/")[0]
-            return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+            return f"[https://docs.google.com/spreadsheets/d/](https://docs.google.com/spreadsheets/d/){sheet_id}/export?format=csv"
     except Exception:
         pass
     return None
@@ -41,9 +42,8 @@ csv_url = get_csv_url(DEFAULT_GSHEET_URL)
 def load_data(url):
     if url:
         try:
-            # מנגנון הורדה בטוח - פותר את שגיאת Errno 2 בענן
-            response = requests.get(url)
-            response.raise_for_status() # מוודא שההורדה הצליחה
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
             df = pd.read_csv(io.StringIO(response.text))
             df.columns = df.columns.str.strip()
             return df
@@ -179,4 +179,6 @@ if bg_style == "🎨 עיצוב אומנותי אוטומטי ב-AI (הקלדת 
                     if not response:
                         raise last_err or Exception("לא התקבל מענה מאף אחד מדגמי Gemini.")
 
-                    clean_res = response.text.replace("```json", "").replace("
+                    # ניקוי בטוח ועמיד מפני שגיאות מירכאות
+                    clean_res = response.text
+                    for fence in ["
