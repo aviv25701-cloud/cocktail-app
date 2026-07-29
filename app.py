@@ -11,7 +11,7 @@ import json
 import random
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v4.0 AI", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v4.1 AI", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – התאמה אישית, עריכה בזמן אמת ומנוע עיצוב AI.")
@@ -131,7 +131,7 @@ border_color_css = "#ffffff"
 line_color_css = "#555555"
 desc_color_css = "#cccccc"
 
-# --- טיפול בייצור עיצוב AI ---
+# --- טיפול בייצור עיצוב AI חסין שגיאות ---
 if bg_style == "🎨 עיצוב אומנותי אוטומטי ב-AI (הקלדת תיאור חופשי)":
     st.info("🤖 **מעצב ה-AI מוכן!** הקלד את האווירה/הנושא המבוקש והמערכת תייצר עבורך פלטת צבעים ורקע ייחודי.")
     ai_prompt = st.text_area(
@@ -147,7 +147,13 @@ if bg_style == "🎨 עיצוב אומנותי אוטומטי ב-AI (הקלדת 
         else:
             with st.spinner("✨ מנוע ה-AI מעצב כעת את התפריט..."):
                 try:
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # זיהוי אוטומטי ודינמי של הדגם הזמין ב-API
+                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    flash_models = [m for m in available_models if 'flash' in m.lower()]
+                    target_model_name = flash_models[0] if flash_models else (available_models[0] if available_models else 'gemini-1.5-pro')
+                    
+                    model = genai.GenerativeModel(target_model_name)
+                    
                     system_instructions = """
                     You are an expert graphic designer for cocktail menus.
                     Analyze the user's concept prompt and return ONLY a valid JSON object (without markdown code blocks) containing:
