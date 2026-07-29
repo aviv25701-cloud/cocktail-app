@@ -11,7 +11,7 @@ import json
 import random
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v5.0 AI", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v5.1 AI", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – התאמה אישית, עריכה בזמן אמת ומנוע עיצוב AI.")
@@ -133,22 +133,21 @@ border_color_css = "#ffffff"
 line_color_css = "#555555"
 desc_color_css = "#cccccc"
 
-# --- טיפול בייצור עיצוב AI חסין שגיאות ---
+# --- טיפול בייצור עיצוב AI חסין שגיאות + הצגת תצוגה מקדימה על המסך ---
 if bg_style == "🎨 עיצוב אומנותי אוטומטי ב-AI (הקלדת תיאור חופשי)":
     st.info("🤖 **מעצב ה-AI מוכן!** הקלד את האווירה/הנושא המבוקש והמערכת תייצר עבורך פלטת צבעים ורקע ייחודי.")
     ai_prompt = st.text_area(
         "תאר את הקונספט או האווירה של האירוע/הבר:", 
-        placeholder="למשל: מסיבת שקיעה בחוף במיקונוס, צבעי תכלת וזהב, קליל ויוקרתי..."
+        placeholder="למשל: מסעדת בשרים צבעים כהים והכל מודגש ולא מינימליסטי..."
     )
     
     if st.button("🪄 הפיקו עיצוב ב-AI", use_container_width=True):
         if not ai_prompt:
             st.warning("אנא הקלד תיאור קצר כדי שה-AI יידע מה לעצב.")
         else:
-            with st.spinner("✨ מנוע ה-AI מעצב כעת את התפריט..."):
+            with st.spinner("✨ מנוע ה-AI מעצב כעת את התפריט ומצייר תמונה..."):
                 ai_config = None
                 
-                # ניסיון פנייה ל-Gemini 1.5 Flash (הדגם החינמי הנתמך והיציב)
                 if gemini_key:
                     try:
                         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -160,7 +159,7 @@ if bg_style == "🎨 עיצוב אומנותי אוטומטי ב-AI (הקלדת 
                         - border_color: Hex color string for borders
                         - line_color: Hex color string for lines
                         - desc_color: Hex color string for descriptions
-                        - image_prompt: A detailed English prompt describing an artistic background graphic with NO text.
+                        - image_prompt: A detailed English prompt describing an artistic background graphic with NO text, suitable for a menu background.
                         """
                         res = model.generate_content(f"{system_instructions}\nUser concept: {ai_prompt}")
                         if res and res.text:
@@ -172,47 +171,63 @@ if bg_style == "🎨 עיצוב אומנותי אוטומטי ב-AI (הקלדת 
                     except Exception:
                         ai_config = None
 
-                # מנגנון גיבוי חכם (אם המפתח בעומס או נחסם - יצירת עיצוב אוטומטית ללא שגיאות!)
                 if not ai_config:
                     ai_config = {
-                        "bg_color": "#0b0c10",
+                        "bg_color": "#121212",
                         "text_color": "#ffffff",
                         "border_color": "#d4a373",
                         "line_color": "#d4a373",
-                        "desc_color": "#cccccc",
-                        "image_prompt": f"Artistic abstract elegant background inspired by {ai_prompt}, high quality, no text"
+                        "desc_color": "#aaaaaa",
+                        "image_prompt": f"Artistic abstract atmospheric background inspired by {ai_prompt}, rich dark tones, high quality, no text"
                     }
 
-                # שמירת ההגדרות ב-session
-                st.session_state['ai_bg_color'] = ai_config.get('bg_color', '#000000')
+                st.session_state['ai_bg_color'] = ai_config.get('bg_color', '#121212')
                 st.session_state['ai_text_color'] = ai_config.get('text_color', '#ffffff')
                 st.session_state['ai_border_color'] = ai_config.get('border_color', '#ffffff')
                 st.session_state['ai_line_color'] = ai_config.get('line_color', '#888888')
                 st.session_state['ai_desc_color'] = ai_config.get('desc_color', '#cccccc')
                 
-                # יצירת תמונת רקע ב-AI
-                prompt_encoded = urllib.parse.quote(ai_config.get('image_prompt', 'abstract cocktail background'))
+                # הורדת תמונה מהירה ומאובטחת דרך image.pollinations.ai
+                prompt_encoded = urllib.parse.quote(ai_config.get('image_prompt', 'dark restaurant background'))
                 seed = random.randint(1, 100000)
-                pollinations_url = f"https://pollinations.ai/p/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
+                pollinations_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
                 
                 try:
-                    img_res = requests.get(pollinations_url, timeout=12)
+                    img_res = requests.get(pollinations_url, timeout=15)
                     if img_res.status_code == 200:
                         st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
-                        st.success("🎉 העיצוב הופק בהצלחה על ידי ה-AI!")
+                        st.success("🎉 העיצוב ותמונת הרקע הופקו בהצלחה על ידי ה-AI!")
                     else:
+                        st.session_state['ai_bg_b64'] = ""
                         st.success("🎉 פלטת הצבעים הותאמה בהצלחה!")
                 except Exception:
+                    st.session_state['ai_bg_b64'] = ""
                     st.success("🎉 פלטת הצבעים הותאמה בהצלחה!")
 
+    # --- תצוגה מקדימה חזותית מפורטת למוצר שנוצר ב-AI ---
     if 'ai_bg_color' in st.session_state:
         bg_color_css = f"background-color: {st.session_state['ai_bg_color']};"
         text_color_css = st.session_state['ai_text_color']
         border_color_css = st.session_state['ai_border_color']
         line_color_css = st.session_state['ai_line_color']
         desc_color_css = st.session_state['ai_desc_color']
-        if 'ai_bg_b64' in st.session_state:
+        
+        st.markdown("#### 🎨 תצוגה מקדימה של העיצוב שנוצר:")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.color_picker("צבע רקע נבחר:", st.session_state['ai_bg_color'], disabled=True, key="pv_bg")
+        with c2:
+            st.color_picker("צבע טקסט נבחר:", st.session_state['ai_text_color'], disabled=True, key="pv_txt")
+        with c3:
+            st.color_picker("צבע מסגרת נבחר:", st.session_state['ai_border_color'], disabled=True, key="pv_brd")
+
+        if 'ai_bg_b64' in st.session_state and st.session_state['ai_bg_b64']:
             bg_base64 = st.session_state['ai_bg_b64']
+            st.image(
+                base64.b64decode(st.session_state['ai_bg_b64']), 
+                caption="🖼️ תמונת הרקע הייחודית שצייר ה-AI (תופיע ברקע התפריט שלך)", 
+                use_container_width=True
+            )
 
 elif bg_style == "שחור קלאסי (רקע שחור, מלל לבן)":
     bg_color_css = "background-color: #000000;"
