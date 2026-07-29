@@ -9,9 +9,10 @@ import urllib.parse
 import requests
 import json
 import random
+import re
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v11.0 Pro Layout", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v12.0 Ultra Fast", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – התאמה אישית, טיפוגרפיה מתקדמת, עיצוב AI וייצוא PDF.")
@@ -56,6 +57,43 @@ if df_cocktails is None or df_cocktails.empty:
     st.error("⚠️ לא ניתן לטעון את מאגר הקוקטיילים. אנא ודא שקישור הגוגל שיטס תקין וציבורי.")
     st.stop()
 
+# --- פונקציית מניעת עברית ב-URL (תרגום חירום אוטומטי) ---
+def clean_and_translate_prompt(text):
+    if not text:
+        return "dark luxury cocktail menu background, realistic texture"
+    
+    # מילון המרה מהיר למקרה שה-API לא החזיר אנגלית
+    dictionary = {
+        "כוס": "cocktail glass",
+        "קוקטייל": "cocktail drink",
+        "כוסות": "cocktail glasses",
+        "מרכז": "in the center",
+        "שיש": "marble texture",
+        "עץ": "wood texture",
+        "כהה": "dark background",
+        "בהיר": "light background",
+        "זהב": "gold accents",
+        "יוקרתי": "luxurious atmosphere",
+        "בר": "bar counter background",
+        "תוסיף": "add",
+        "תוריד": "remove",
+        "תשנה": "change color to"
+    }
+    
+    words = text.split()
+    english_parts = []
+    for w in words:
+        clean_w = re.sub(r'[^\w\s]', '', w)
+        if clean_w in dictionary:
+            english_parts.append(dictionary[clean_w])
+        elif re.match(r'^[a-zA-Z0-9\s,-]+$', w):
+            english_parts.append(w)
+            
+    result = " ".join(english_parts)
+    if not result.strip():
+        result = "dark luxury cocktail menu background"
+    return f"cocktail menu background, {result}"
+
 # --- פונקציית סריקה רקורסיבית מקיפה וחכמה ---
 def find_card_file_unbeatable(drink_name):
     def clean_str(s):
@@ -99,9 +137,9 @@ def remove_white_background(image_bytes):
     except Exception:
         return image_bytes
 
-# --- פונקציית עזר לפנייה חסינת שגיאות ל-Gemini ---
+# --- פונקציית עזר לפנייה מהירה ל-Gemini ---
 def safe_gemini_generate(prompt_contents):
-    candidate_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash']
+    candidate_models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro']
     for m_name in candidate_models:
         try:
             model = genai.GenerativeModel(m_name)
@@ -162,23 +200,16 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
         if not ai_prompt and not ref_image_file:
             st.warning("אנא הקלד תיאור קצר או העלה תמונת רפרנס.")
         else:
-            with st.spinner("✨ מנוע ה-Vision AI מנתח ומעצב..."):
+            with st.spinner("✨ מנוע ה-AI מעצב את התפריט..."):
                 ai_config = None
                 
                 if gemini_key:
                     system_instructions = """
-                    You are a master graphic designer for high-end COCKTAIL MENUS.
-                    Analyze user prompt & image.
-                    Return ONLY a JSON object:
-                    - bg_color: Hex color string
-                    - text_color: Hex color string
-                    - border_color: Hex color string
-                    - line_color: Hex color string
-                    - desc_color: Hex color string
-                    - image_prompt: Detailed English prompt for background texture or photography.
+                    Graphic designer for cocktail menus.
+                    Analyze user prompt/image and return ONLY a JSON object:
+                    {"bg_color": "#...", "text_color": "#...", "border_color": "#...", "line_color": "#...", "desc_color": "#...", "image_prompt": "English prompt for background image"}
                     """
-                    
-                    prompt_contents = [f"{system_instructions}\nUser prompt: {ai_prompt}"]
+                    prompt_contents = [f"{system_instructions}\nPrompt: {ai_prompt}"]
                     if ref_image_file:
                         prompt_contents.append(Image.open(ref_image_file))
                     
@@ -199,7 +230,7 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                         "border_color": "#c5a059",
                         "line_color": "#c5a059",
                         "desc_color": "#dddddd",
-                        "image_prompt": f"Luxury cocktail menu background, {ai_prompt or 'dark marble texture'}"
+                        "image_prompt": clean_and_translate_prompt(ai_prompt)
                     }
 
                 st.session_state['ai_bg_color'] = ai_config.get('bg_color', '#121212')
@@ -207,21 +238,22 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                 st.session_state['ai_border_color'] = ai_config.get('border_color', '#ffffff')
                 st.session_state['ai_line_color'] = ai_config.get('line_color', '#888888')
                 st.session_state['ai_desc_color'] = ai_config.get('desc_color', '#cccccc')
-                st.session_state['ai_image_prompt'] = ai_config.get('image_prompt', '')
+                st.session_state['ai_image_prompt'] = ai_config.get('image_prompt', 'dark marble texture')
                 
-                prompt_encoded = urllib.parse.quote(st.session_state['ai_image_prompt'])
+                clean_english_prompt = clean_and_translate_prompt(st.session_state['ai_image_prompt'])
+                prompt_encoded = urllib.parse.quote(clean_english_prompt)
                 seed = random.randint(1, 999999)
                 pollinations_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
                 
                 try:
-                    img_res = requests.get(pollinations_url, timeout=8)
+                    img_res = requests.get(pollinations_url, timeout=7)
                     if img_res.status_code == 200:
                         st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
                 except Exception:
                     st.session_state['ai_bg_b64'] = ""
                 st.rerun()
 
-    # --- מנגנון צ'אט עם תרגום ועיבוד אקטיבי ב-Gemini ---
+    # --- מנגנון צ'אט מעודכן וחסין תקלות ---
     if 'ai_bg_color' in st.session_state:
         st.markdown("---")
         st.markdown("### 💬 לדייק ולשפר את העיצוב הקיים בצ'אט")
@@ -234,47 +266,39 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
             if not refine_input:
                 st.warning("אנא הקלד הנחיה לשיפור העיצוב.")
             else:
-                with st.spinner("🔄 מנוע ה-AI מתרגם ומעדכן את הגרפיקה..."):
+                with st.spinner("🔄 מנוע ה-AI מעדכן את הגרפיקה..."):
                     current_prompt = st.session_state.get('ai_image_prompt', 'dark marble background')
                     
-                    # תרגום ועיבוד ההנחיה בעברית לאנגלית מקצועית
                     translation_prompt = f"""
-                    You are an AI graphic design prompt builder.
-                    Current image prompt: "{current_prompt}"
-                    User requested change (in Hebrew): "{refine_input}"
-                    
-                    Task: Rewrite the image prompt in clear English incorporating the user request.
-                    Return ONLY a JSON object:
-                    {{
-                        "updated_prompt": "new english image prompt",
-                        "bg_color": "{st.session_state.get('ai_bg_color')}",
-                        "text_color": "{st.session_state.get('ai_text_color')}"
-                    }}
+                    Convert Hebrew design tweak to English image prompt.
+                    Current prompt: "{current_prompt}"
+                    Hebrew tweak: "{refine_input}"
+                    Return ONLY JSON: {{"updated_prompt": "clear english image prompt with tweaks"}}
                     """
                     
                     res_text = safe_gemini_generate([translation_prompt])
-                    updated_prompt = f"{current_prompt}, {refine_input}"
-                    
+                    updated_prompt_en = ""
                     if res_text:
                         start_pos = res_text.find("{")
                         end_pos = res_text.rfind("}")
                         if start_pos != -1 and end_pos != -1:
                             try:
                                 parsed = json.loads(res_text[start_pos:end_pos+1])
-                                updated_prompt = parsed.get("updated_prompt", updated_prompt)
-                                if "bg_color" in parsed: st.session_state['ai_bg_color'] = parsed['bg_color']
-                                if "text_color" in parsed: st.session_state['ai_text_color'] = parsed['text_color']
+                                updated_prompt_en = parsed.get("updated_prompt", "")
                             except Exception:
                                 pass
 
-                    st.session_state['ai_image_prompt'] = updated_prompt
+                    if not updated_prompt_en:
+                        updated_prompt_en = clean_and_translate_prompt(f"{current_prompt} {refine_input}")
+
+                    st.session_state['ai_image_prompt'] = updated_prompt_en
                     
-                    prompt_encoded = urllib.parse.quote(updated_prompt)
+                    prompt_encoded = urllib.parse.quote(updated_prompt_en)
                     seed = random.randint(1, 999999)
                     pollinations_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
                     
                     try:
-                        img_res = requests.get(pollinations_url, timeout=10)
+                        img_res = requests.get(pollinations_url, timeout=7)
                         if img_res.status_code == 200:
                             st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
                     except Exception:
@@ -350,7 +374,7 @@ else:
     border_style_css = "border: none;"
 
 # ==============================================================================
-# 🔤 3. הגדרות טיפוגרפיה, גודל פונט, מרווחים וצבעים (חדש!)
+# 🔤 3. הגדרות טיפוגרפיה, גודל פונט, מרווחים וצבעים
 # ==============================================================================
 st.markdown("---")
 st.subheader("3. עיצוב טקסט, פונטים ומרווחים (שליטת סוכן מלאה)")
@@ -455,7 +479,6 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
 
         bg_css_rule = f"background-image: url(data:image/png;base64,{bg_base64}); background-size: cover; background-position: center;" if bg_base64 else bg_color_css
 
-        # HTML + CSS מתוקן התומך בפונטים מגוגל, מרווחים וגודל דינמי
         menu_html = f"""
         <!DOCTYPE html>
         <html lang="he" dir="rtl">
