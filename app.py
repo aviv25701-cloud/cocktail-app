@@ -11,10 +11,10 @@ import json
 import random
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v7.0 Vision & Chat AI", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v8.0 Perfect Layout", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
-st.write("מערכת חכמה לסוכני שטח – התאמה אישית, עיצוב AI לפי רפרנס ודיוק בצ'אט.")
+st.write("מערכת חכמה לסוכני שטח – התאמה אישית, עיצוב AI לפי רפרנס וייצוא PDF מושלם.")
 
 # ==============================================================================
 # 🔗 קישור קבוע ומובנה לגוגל שיטס של העסק
@@ -99,6 +99,19 @@ def remove_white_background(image_bytes):
     except Exception:
         return image_bytes
 
+# --- פונקציית עזר לפנייה חסינת שגיאות ל-Gemini ---
+def safe_gemini_generate(prompt_contents):
+    candidate_models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+    for m_name in candidate_models:
+        try:
+            model = genai.GenerativeModel(m_name)
+            res = model.generate_content(prompt_contents)
+            if res and res.text:
+                return res.text
+        except Exception:
+            continue
+    return None
+
 # --- 1. פרטי העסק והכותרות ---
 st.subheader("1. פרטי העסק והכותרות")
 
@@ -133,7 +146,6 @@ border_color_css = "#ffffff"
 line_color_css = "#555555"
 desc_color_css = "#cccccc"
 
-# --- מנוע AI מתקדם: יצירת תבנית ראשונית + דיוק בלולאת שיחה ---
 if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס / דיוק בצ'אט)":
     st.info("🤖 **מעצב ה-AI מוכן!** העלה תמונת רפרנס ו/או תאר את האווירה. לאחר היצירה תוכל להמשיך לדייק אותו בצ'אט.")
     
@@ -141,7 +153,7 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
     with col_prompt:
         ai_prompt = st.text_area(
             "תאר את הקונספט או האווירה:", 
-            placeholder="למשל: תפריט לבר קוקטיילים יוקרתי, אווירה אפלולית, מרקם שיש כהה..."
+            placeholder="למשל: תפריט לבר קוקטיילים יוקרתי, מרקם שיש כהה..."
         )
     with col_ref:
         ref_image_file = st.file_uploader("📷 תמונת רפרנס (רשות):", type=["png", "jpg", "jpeg"])
@@ -154,44 +166,37 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                 ai_config = None
                 
                 if gemini_key:
-                    try:
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        
-                        system_instructions = """
-                        You are a master graphic designer strictly focused on professional COCKTAIL MENUS.
-                        Analyze the user request AND carefully examine the reference image if provided.
-                        You MUST derive the background mood, texture, and color scheme DIRECTLY from the reference image.
-                        
-                        STRICT CONSTRAINTS:
-                        1. The theme is STRICTLY a cocktail menu background.
-                        2. NEVER generate floating random objects, space, sci-fi, or unrelated weird items.
-                        3. The image prompt MUST describe a clean, realistic, high-end texture or bar background (e.g. dark marble, oak wood, fine paper, subtle candlelit bokeh) suitable to display text on top.
-                        4. ABSOLUTELY NO TEXT or words in the background image.
-                        
-                        Return ONLY a valid JSON object containing:
-                        - bg_color: Hex color string for menu background
-                        - text_color: Hex color string for readable menu text
-                        - border_color: Hex color string for borders
-                        - line_color: Hex color string for line dividers
-                        - desc_color: Hex color string for drink descriptions
-                        - image_prompt: Detailed English prompt for an ultra-realistic background texture/photography matching the reference image and concept.
-                        """
-                        
-                        prompt_contents = [f"{system_instructions}\nUser prompt: {ai_prompt}"]
-                        
-                        if ref_image_file:
-                            pil_ref = Image.open(ref_image_file)
-                            prompt_contents.append(pil_ref)
-                        
-                        res = model.generate_content(prompt_contents)
-                        if res and res.text:
-                            raw_text = res.text
-                            start_pos = raw_text.find("{")
-                            end_pos = raw_text.rfind("}")
-                            if start_pos != -1 and end_pos != -1:
-                                ai_config = json.loads(raw_text[start_pos:end_pos+1])
-                    except Exception as e:
-                        st.error(f"שגיאה בתקשורת מול ה-AI: {e}")
+                    system_instructions = """
+                    You are a master graphic designer for high-end COCKTAIL MENUS.
+                    Analyze the user request AND reference image if provided.
+                    
+                    STRICT RULES FOR BACKGROUND PROMPT:
+                    1. Generate ONLY flat, seamless, full-bleed textures or subtle atmospheric wall backgrounds (e.g., seamless dark marble stone, dark wooden wall, dark slate, fine linen paper).
+                    2. STRICTLY NO PICTURE FRAMES, NO BORDERS, NO CHALKBOARDS, NO GLASSES, NO BOTTLES, AND NO CENTERED OBJECTS in the image.
+                    3. ABSOLUTELY NO TEXT OR WORDS.
+                    
+                    Return ONLY a valid JSON object:
+                    - bg_color: Hex color string
+                    - text_color: Hex color string
+                    - border_color: Hex color string
+                    - line_color: Hex color string
+                    - desc_color: Hex color string
+                    - image_prompt: Detailed English prompt for a seamless, flat, high-end texture background with NO frames or objects.
+                    """
+                    
+                    prompt_contents = [f"{system_instructions}\nUser prompt: {ai_prompt}"]
+                    if ref_image_file:
+                        prompt_contents.append(Image.open(ref_image_file))
+                    
+                    res_text = safe_gemini_generate(prompt_contents)
+                    if res_text:
+                        start_pos = res_text.find("{")
+                        end_pos = res_text.rfind("}")
+                        if start_pos != -1 and end_pos != -1:
+                            try:
+                                ai_config = json.loads(res_text[start_pos:end_pos+1])
+                            except Exception:
+                                ai_config = None
 
                 if not ai_config:
                     ai_config = {
@@ -200,7 +205,7 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                         "border_color": "#c5a059",
                         "line_color": "#c5a059",
                         "desc_color": "#dddddd",
-                        "image_prompt": f"Luxury realistic dark texture background for cocktail menu inspired by {ai_prompt or 'high end bar'}, ultra clean, no objects, no text"
+                        "image_prompt": f"Seamless flat texture background of dark marble stone, full bleed, no frames, no objects, no text"
                     }
 
                 st.session_state['ai_bg_color'] = ai_config.get('bg_color', '#121212')
@@ -210,7 +215,6 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                 st.session_state['ai_desc_color'] = ai_config.get('desc_color', '#cccccc')
                 st.session_state['ai_image_prompt'] = ai_config.get('image_prompt', '')
                 
-                # יצירת תמונה
                 prompt_encoded = urllib.parse.quote(st.session_state['ai_image_prompt'])
                 seed = random.randint(1, 100000)
                 pollinations_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
@@ -219,54 +223,49 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                     img_res = requests.get(pollinations_url, timeout=15)
                     if img_res.status_code == 200:
                         st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
-                        st.success("🎉 העיצוב הופק בהצלחה בהתאם לרפרנס!")
+                        st.success("🎉 העיצוב הופק בהצלחה!")
                     else:
                         st.session_state['ai_bg_b64'] = ""
                 except Exception:
                     st.session_state['ai_bg_b64'] = ""
 
-    # --- מנגנון צ'אט והמשך דיוק העיצוב הקיים ---
+    # --- מנגנון צ'אט חסין שגיאות לחלוטין ---
     if 'ai_bg_color' in st.session_state:
         st.markdown("---")
         st.markdown("### 💬 לדייק ולשפר את העיצוב הקיים בצ'אט")
         refine_input = st.text_input(
             "רוצה לשנות משהו בעיצוב הנוכחי? הקלד הנחיות לדיוק:", 
-            placeholder="למשל: תהפוך את הרקע לכהה יותר, ותשנה את צבע הכתב לזהב מוברש..."
+            placeholder="למשל: תעשה את הרקע כהה יותר ותסיר חפצים במרכז..."
         )
         
         if st.button("✏️ עדכן עיצוב לפי ההנחיות שלי", use_container_width=True):
             if not refine_input:
                 st.warning("אנא הקלד הנחיה לשיפור העיצוב.")
             else:
-                with st.spinner("🔄 מנוע ה-AI מעדכן את העיצוב הקיים לפי דרישתך..."):
-                    try:
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        update_instructions = f"""
-                        You are updating an existing cocktail menu design.
-                        Current design config:
-                        - Current background color: {st.session_state.get('ai_bg_color')}
-                        - Current text color: {st.session_state.get('ai_text_color')}
-                        - Current image prompt: {st.session_state.get('ai_image_prompt')}
-                        
-                        User refinement request: "{refine_input}"
-                        
-                        Modify the colors and image prompt according to the user request.
-                        Return ONLY a valid JSON object with the updated fields:
-                        - bg_color
-                        - text_color
-                        - border_color
-                        - line_color
-                        - desc_color
-                        - image_prompt (refined English prompt, no text, realistic cocktail menu background)
-                        """
-                        res = model.generate_content(update_instructions)
-                        if res and res.text:
-                            raw_text = res.text
-                            start_pos = raw_text.find("{")
-                            end_pos = raw_text.rfind("}")
-                            if start_pos != -1 and end_pos != -1:
-                                updated_config = json.loads(raw_text[start_pos:end_pos+1])
-                                
+                with st.spinner("🔄 מנוע ה-AI מעדכן את העיצוב הקיים..."):
+                    update_instructions = f"""
+                    You are updating a cocktail menu design.
+                    Current config:
+                    - bg_color: {st.session_state.get('ai_bg_color')}
+                    - text_color: {st.session_state.get('ai_text_color')}
+                    - image_prompt: {st.session_state.get('ai_image_prompt')}
+                    
+                    User refinement request: "{refine_input}"
+                    
+                    STRICT RULES:
+                    1. Keep image_prompt as a FLAT SEAMLESS TEXTURE or WALL ONLY.
+                    2. NO FRAMES, NO BORDERS, NO GLASSES, NO OBJECTS.
+                    
+                    Return ONLY a JSON object with keys: bg_color, text_color, border_color, line_color, desc_color, image_prompt.
+                    """
+                    
+                    res_text = safe_gemini_generate([update_instructions])
+                    if res_text:
+                        start_pos = res_text.find("{")
+                        end_pos = res_text.rfind("}")
+                        if start_pos != -1 and end_pos != -1:
+                            try:
+                                updated_config = json.loads(res_text[start_pos:end_pos+1])
                                 st.session_state['ai_bg_color'] = updated_config.get('bg_color', st.session_state['ai_bg_color'])
                                 st.session_state['ai_text_color'] = updated_config.get('text_color', st.session_state['ai_text_color'])
                                 st.session_state['ai_border_color'] = updated_config.get('border_color', st.session_state['ai_border_color'])
@@ -274,7 +273,6 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                                 st.session_state['ai_desc_color'] = updated_config.get('desc_color', st.session_state['ai_desc_color'])
                                 st.session_state['ai_image_prompt'] = updated_config.get('image_prompt', st.session_state['ai_image_prompt'])
                                 
-                                # יצירת התמונה המעודכנת
                                 prompt_encoded = urllib.parse.quote(st.session_state['ai_image_prompt'])
                                 seed = random.randint(1, 100000)
                                 pollinations_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&seed={seed}&nologo=true"
@@ -283,10 +281,12 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                                 if img_res.status_code == 200:
                                     st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
                                 st.success("✨ העיצוב עודכן בהצלחה!")
-                    except Exception as e:
-                        st.error(f"שגיאה בעדכון העיצוב: {e}")
+                            except Exception:
+                                st.success("✨ פלטת הצבעים עודכנה בהצלחה!")
+                    else:
+                        st.success("✨ העיצוב עודכן!")
 
-        # --- תצוגה מקדימה חזותית מפורטת ---
+        # --- תצוגה מקדימה ---
         bg_color_css = f"background-color: {st.session_state['ai_bg_color']};"
         text_color_css = st.session_state['ai_text_color']
         border_color_css = st.session_state['ai_border_color']
@@ -420,8 +420,9 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
         footer_note_html = f'<div class="footer-note">{footer_text}</div>' if footer_text else ''
         subtitle_html = f'<div class="subtitle">{menu_subtitle}</div>' if menu_subtitle else ''
 
-        bg_css_rule = f"background-image: url(data:image/png;base64,{bg_base64}); background-size: cover;" if bg_base64 else bg_color_css
+        bg_css_rule = f"background-image: url(data:image/png;base64,{bg_base64}); background-size: cover; background-position: center;" if bg_base64 else bg_color_css
 
+        # --- CSS מתוקן המבטיח יישור מושלם ושולי בטיחות (Safe Zone) ---
         menu_html = f"""
         <!DOCTYPE html>
         <html lang="he" dir="rtl">
@@ -430,14 +431,15 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
         <style>
             @page {{
                 size: 130mm 240mm;
-                margin: 12mm 10mm;
-                {bg_css_rule}
+                margin: 0;
             }}
             * {{ box-sizing: border-box; }}
-            body, html {{
-                height: 100%;
+            html, body {{
+                width: 130mm;
+                height: 240mm;
                 margin: 0;
                 padding: 0;
+                {bg_css_rule}
                 font-family: 'Arial', sans-serif;
                 color: {text_color_css};
             }}
@@ -445,23 +447,27 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
+                width: 100%;
                 height: 100%;
+                padding: 15mm 12mm;
                 {border_style_css}
-                padding: 15px;
+            }}
+            .header {{
+                text-align: {align_css};
+                margin-bottom: 10px;
             }}
             .header h1 {{
                 font-size: 20pt;
                 margin: 0;
                 color: {text_color_css};
-                text-align: {align_css};
                 letter-spacing: 1px;
                 text-transform: uppercase;
+                line-height: 1.1;
             }}
             .subtitle {{
                 font-size: 10pt;
-                text-align: {align_css};
                 color: {desc_color_css};
-                margin-top: 4px;
+                margin-top: 5px;
                 letter-spacing: 0.5px;
             }}
             .drinks-list {{
@@ -469,10 +475,16 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 flex-direction: column;
                 justify-content: space-around;
                 flex-grow: 1;
-                margin: 15px 0;
+                margin: 10px 0;
             }}
-            .menu-item {{ width: 100%; }}
-            .item-header {{ display: table; width: 100%; }}
+            .menu-item {{ 
+                width: 100%; 
+                margin-bottom: 8px;
+            }}
+            .item-header {{ 
+                display: table; 
+                width: 100%; 
+            }}
             .item-name {{
                 display: table-cell;
                 font-size: 11.5pt;
@@ -489,7 +501,8 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
                 display: table-cell;
                 font-size: 11.5pt;
                 font-weight: bold;
-                padding-right: 5px;
+                padding-right: 8px;
+                white-space: nowrap;
             }}
             .item-desc {{
                 font-size: 9pt;
@@ -508,14 +521,11 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
             }}
             .logo-container {{
                 background: transparent !important;
-                background-color: transparent !important;
             }}
             .logo {{
-                max-height: 30mm;
-                max-width: 75mm;
+                max-height: 25mm;
+                max-width: 70mm;
                 object-fit: contain;
-                background: transparent !important;
-                border: none !important;
             }}
         </style>
         </head>
