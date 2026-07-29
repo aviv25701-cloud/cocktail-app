@@ -11,7 +11,7 @@ import json
 import random
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v8.0 Perfect Layout", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v8.1 Fixed Chat", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – התאמה אישית, עיצוב AI לפי רפרנס וייצוא PDF מושלם.")
@@ -101,7 +101,7 @@ def remove_white_background(image_bytes):
 
 # --- פונקציית עזר לפנייה חסינת שגיאות ל-Gemini ---
 def safe_gemini_generate(prompt_contents):
-    candidate_models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+    candidate_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash']
     for m_name in candidate_models:
         try:
             model = genai.GenerativeModel(m_name)
@@ -228,14 +228,15 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                         st.session_state['ai_bg_b64'] = ""
                 except Exception:
                     st.session_state['ai_bg_b64'] = ""
+                st.rerun()
 
-    # --- מנגנון צ'אט חסין שגיאות לחלוטין ---
+    # --- מנגנון צ'אט מעודכן ותקני לחלוטין ---
     if 'ai_bg_color' in st.session_state:
         st.markdown("---")
         st.markdown("### 💬 לדייק ולשפר את העיצוב הקיים בצ'אט")
         refine_input = st.text_input(
             "רוצה לשנות משהו בעיצוב הנוכחי? הקלד הנחיות לדיוק:", 
-            placeholder="למשל: תעשה את הרקע כהה יותר ותסיר חפצים במרכז..."
+            placeholder="למשל: תעשה את הרקע כהה יותר ותסיר את הכוס במרכז..."
         )
         
         if st.button("✏️ עדכן עיצוב לפי ההנחיות שלי", use_container_width=True):
@@ -243,20 +244,30 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                 st.warning("אנא הקלד הנחיה לשיפור העיצוב.")
             else:
                 with st.spinner("🔄 מנוע ה-AI מעדכן את העיצוב הקיים..."):
+                    current_prompt = st.session_state.get('ai_image_prompt', 'dark marble texture background')
                     update_instructions = f"""
-                    You are updating a cocktail menu design.
-                    Current config:
-                    - bg_color: {st.session_state.get('ai_bg_color')}
-                    - text_color: {st.session_state.get('ai_text_color')}
-                    - image_prompt: {st.session_state.get('ai_image_prompt')}
+                    You are updating an existing cocktail menu background design.
+                    Current background prompt: "{current_prompt}"
+                    Current background color: "{st.session_state.get('ai_bg_color')}"
                     
-                    User refinement request: "{refine_input}"
+                    User requested refinement in Hebrew: "{refine_input}"
                     
-                    STRICT RULES:
-                    1. Keep image_prompt as a FLAT SEAMLESS TEXTURE or WALL ONLY.
-                    2. NO FRAMES, NO BORDERS, NO GLASSES, NO OBJECTS.
+                    YOUR TASK:
+                    1. Translate and apply the user's request into an updated English image prompt.
+                    2. STRICTLY keep the background as a FLAT SEAMLESS TEXTURE or WALL.
+                    3. ABSOLUTELY NO FRAMES, NO BORDERS, NO CHALKBOARDS, NO GLASSES, NO OBJECTS IN THE CENTER.
+                    4. ABSOLUTELY NO TEXT.
+                    5. Output updated hex colors for menu readability.
                     
-                    Return ONLY a JSON object with keys: bg_color, text_color, border_color, line_color, desc_color, image_prompt.
+                    Return ONLY a JSON object:
+                    {{
+                      "bg_color": "#...",
+                      "text_color": "#...",
+                      "border_color": "#...",
+                      "line_color": "#...",
+                      "desc_color": "#...",
+                      "image_prompt": "updated prompt in English"
+                    }}
                     """
                     
                     res_text = safe_gemini_generate([update_instructions])
@@ -271,7 +282,7 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                                 st.session_state['ai_border_color'] = updated_config.get('border_color', st.session_state['ai_border_color'])
                                 st.session_state['ai_line_color'] = updated_config.get('line_color', st.session_state['ai_line_color'])
                                 st.session_state['ai_desc_color'] = updated_config.get('desc_color', st.session_state['ai_desc_color'])
-                                st.session_state['ai_image_prompt'] = updated_config.get('image_prompt', st.session_state['ai_image_prompt'])
+                                st.session_state['ai_image_prompt'] = updated_config.get('image_prompt', current_prompt)
                                 
                                 prompt_encoded = urllib.parse.quote(st.session_state['ai_image_prompt'])
                                 seed = random.randint(1, 100000)
@@ -280,11 +291,14 @@ if bg_style == "🎨 עיצוב חכם ב-AI (חופשי / תמונת רפרנס
                                 img_res = requests.get(pollinations_url, timeout=15)
                                 if img_res.status_code == 200:
                                     st.session_state['ai_bg_b64'] = base64.b64encode(img_res.content).decode("utf-8")
-                                st.success("✨ העיצוב עודכן בהצלחה!")
-                            except Exception:
-                                st.success("✨ פלטת הצבעים עודכנה בהצלחה!")
+                                st.success("✨ העיצוב עודכן בהצלחה לפי ההנחיות שלך!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"שגיאה בעדכון העיצוב: {e}")
+                        else:
+                            st.error("ה-AI לא החזיר מענה בפורמט תקין. נסה לנסח מחדש.")
                     else:
-                        st.success("✨ העיצוב עודכן!")
+                        st.error("לא התקבל מענה משרת ה-AI. נסה שוב עוד רגע.")
 
         # --- תצוגה מקדימה ---
         bg_color_css = f"background-color: {st.session_state['ai_bg_color']};"
@@ -422,7 +436,6 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
 
         bg_css_rule = f"background-image: url(data:image/png;base64,{bg_base64}); background-size: cover; background-position: center;" if bg_base64 else bg_color_css
 
-        # --- CSS מתוקן המבטיח יישור מושלם ושולי בטיחות (Safe Zone) ---
         menu_html = f"""
         <!DOCTYPE html>
         <html lang="he" dir="rtl">
