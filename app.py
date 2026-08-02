@@ -12,7 +12,7 @@ import random
 import re
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v13.0 Clean BG", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v14.0 Pro Ultimate", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – התאמה אישית, טיפוגרפיה מתקדמת, רקעים נקיים וייצוא PDF.")
@@ -38,7 +38,7 @@ def get_csv_url(url):
 
 csv_url = get_csv_url(DEFAULT_GSHEET_URL)
 
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=5)
 def load_data(url):
     if url:
         try:
@@ -46,6 +46,7 @@ def load_data(url):
             response.raise_for_status()
             df = pd.read_csv(io.StringIO(response.text))
             df.columns = df.columns.str.strip()
+            df = df.fillna('')
             return df
         except Exception as e:
             st.error(f"שגיאה בחיבור לגוגל שיטס: {e}")
@@ -62,7 +63,6 @@ def build_guarded_clean_prompt(text):
     if not text:
         base_desc = "dark luxury marble texture"
     else:
-        # מילון תרגום מהיר למילות מפתח
         dictionary = {
             "שיש": "marble texture",
             "עץ": "rustic wood texture",
@@ -87,16 +87,17 @@ def build_guarded_clean_prompt(text):
                 
         base_desc = " ".join(translated) if translated else "dark elegant texture"
         
-    # הנחיה קשיחה למנוע התמונות לקבלת רקע חלק ונקי 100%
     strict_clean_suffix = "minimalist plain surface texture, subtle smooth background, full bleed, no objects, no glasses, no cups, no frames, no borders, no chalkboards, no text, no drawings, no clutter"
     return f"{base_desc}, {strict_clean_suffix}"
 
-# --- פונקציית סריקה רקורסיבית מקיפה וחכמה ---
+# --- פונקציית סריקה רקורסיבית מקיפה וחכמה להתאמת קבצים ---
 def find_card_file_unbeatable(drink_name):
-    def clean_str(s):
-        return "".join(c.lower() for c in str(s) if c.isalnum())
+    def normalize_str(s):
+        # הסרת מילים נפוצות, סימני פיסוק ורווחים לקבלת מחרוזת נקייה
+        s_clean = re.sub(r'(מיקסר|mixer|[-_,\(\)])', '', str(s), flags=re.IGNORECASE)
+        return "".join(c.lower() for c in s_clean if c.isalnum())
 
-    target_clean = clean_str(drink_name)
+    target_clean = normalize_str(drink_name)
     valid_extensions = ['.png', '.jpg', '.jpeg', '.pdf']
 
     for root, dirs, files in os.walk("."):
@@ -108,7 +109,7 @@ def find_card_file_unbeatable(drink_name):
             ext_lower = ext.lower()
             
             if ext_lower in valid_extensions:
-                if clean_str(name_without_ext) == target_clean:
+                if normalize_str(name_without_ext) == target_clean:
                     full_path = os.path.join(root, filename)
                     return full_path, ext_lower
 
@@ -240,7 +241,6 @@ if bg_style == "🎨 עיצוב חכם ב-AI (רקע חלק ונקי / תמונ�
                 st.session_state['ai_desc_color'] = ai_config.get('desc_color', '#cccccc')
                 st.session_state['ai_image_prompt'] = ai_config.get('image_prompt', 'dark marble texture')
                 
-                # הפעלת מנוע החסימה לרקע חלק ונקי
                 guarded_prompt = build_guarded_clean_prompt(st.session_state['ai_image_prompt'])
                 prompt_encoded = urllib.parse.quote(guarded_prompt)
                 seed = random.randint(1, 999999)
@@ -254,7 +254,6 @@ if bg_style == "🎨 עיצוב חכם ב-AI (רקע חלק ונקי / תמונ�
                     st.session_state['ai_bg_b64'] = ""
                 st.rerun()
 
-    # --- מנגנון צ'אט עם כפיית רקע חלק ונקי ---
     if 'ai_bg_color' in st.session_state:
         st.markdown("---")
         st.markdown("### 💬 לדייק ולשפר את העיצוב הקיים בצ'אט")
@@ -292,7 +291,6 @@ if bg_style == "🎨 עיצוב חכם ב-AI (רקע חלק ונקי / תמונ�
 
                     st.session_state['ai_image_prompt'] = updated_prompt_en
                     
-                    # הפעלת מנוע החסימה לרקע חלק
                     guarded_prompt = build_guarded_clean_prompt(updated_prompt_en)
                     prompt_encoded = urllib.parse.quote(guarded_prompt)
                     seed = random.randint(1, 999999)
@@ -423,28 +421,78 @@ if uploaded_logo:
         logo_bytes = remove_white_background(logo_bytes)
     logo_base64 = base64.b64encode(logo_bytes).decode("utf-8")
 
+# ==============================================================================
+# 🍹 5. בחירת מוצרים, תמחור, סינון וחיפוש בזמן אמת (שודרג!)
+# ==============================================================================
 st.markdown("---")
 st.subheader("5. בחירת מוצרים, תמחור ועריכה בזמן אמת")
+
+# --- סרגל חיפוש וסינון מהיר לסוכנים ---
+col_search, col_filter = st.columns([2, 1])
+with col_search:
+    search_query = st.text_input("🔍 חיפוש משקה לפי שם:", placeholder="למשל: PURPLE, MARGARITA...")
+with col_filter:
+    category_filter = st.selectbox("📂 סינון לפי סוג:", ["הכל", "קוקטיילים בלבד", "מיקסרים בלבד"])
+
+# --- כפתורי בחירה מהירה ---
+col_btn1, col_btn2, _ = st.columns([1, 1, 2])
+with col_btn1:
+    if st.button("✅ בחר הכל", use_container_width=True):
+        for idx_b in range(len(df_cocktails)):
+            st.session_state[f"select_state_{idx_b}"] = True
+        st.rerun()
+with col_btn2:
+    if st.button("❌ נקה הכל", use_container_width=True):
+        for idx_b in range(len(df_cocktails)):
+            st.session_state[f"select_state_{idx_b}"] = False
+        st.rerun()
 
 selected_drinks_data = []
 
 for idx, row in df_cocktails.iterrows():
-    is_selected = st.checkbox(f"🍹 **{row['Name']}**", key=f"select_{row['ID']}")
+    item_id = str(row.get('ID', idx))
+    drink_name = str(row.get('Name', f'מוצר {idx+1}'))
+    ingredients_val = str(row.get('Ingredients', '')) if pd.notna(row.get('Ingredients')) else ''
+
+    # סינון לפי קטגוריה וחיפוש
+    is_mixer = "מיקסר" in drink_name or "mixer" in drink_name.lower()
+    
+    if category_filter == "קוקטיילים בלבד" and is_mixer:
+        continue
+    if category_filter == "מיקסרים בלבד" and not is_mixer:
+        continue
+        
+    if search_query and search_query.lower() not in drink_name.lower():
+        continue
+
+    # ניהול מצב סימון עמיד
+    state_key = f"select_state_{idx}"
+    if state_key not in st.session_state:
+        st.session_state[state_key] = False
+
+    unique_key_select = f"select_{idx}_{item_id}"
+    
+    is_selected = st.checkbox(
+        f"🍹 **{drink_name}**", 
+        value=st.session_state[state_key], 
+        key=unique_key_select
+    )
+    st.session_state[state_key] = is_selected
     
     if is_selected:
-        with st.expander(f"עריכת פרטים עבור: {row['Name']}", expanded=True):
+        with st.expander(f"עריכת פרטים עבור: {drink_name}", expanded=True):
             col_name, col_price = st.columns([3, 1])
             with col_name:
-                editable_name = st.text_input("שם המשקה בתפריט:", value=row['Name'], key=f"name_edit_{row['ID']}")
+                editable_name = st.text_input("שם המשקה בתפריט:", value=drink_name, key=f"name_edit_{idx}_{item_id}")
             with col_price:
-                editable_price = st.text_input("מחיר (₪):", value="45", key=f"price_edit_{row['ID']}")
+                editable_price = st.text_input("מחיר (₪):", value="45", key=f"price_edit_{idx}_{item_id}")
                 
-            editable_ingredients = st.text_area("מרכיבים (הפרד באמצעות |):", value=row['Ingredients'], key=f"ing_edit_{row['ID']}")
+            editable_ingredients = st.text_area("מרכיבים (הפרד באמצעות |):", value=ingredients_val, key=f"ing_edit_{idx}_{item_id}")
             
         selected_drinks_data.append({
-            "ID": row['ID'],
+            "ID": item_id,
             "Name": editable_name,
-            "OriginalName": row['Name'],
+            "OriginalName": drink_name,
             "Price": editable_price,
             "Ingredients": editable_ingredients
         })
@@ -605,8 +653,10 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
 
         cards_html = ""
         for item in selected_drinks_data:
+            # חיפוש חכם 1: לפי שם מקורי בשיטס (למשל "מיקסר - PURPLE KISS")
             card_path, ext = find_card_file_unbeatable(item['OriginalName'])
             
+            # חיפוש חכם 2: לפי השם ששונה בעריכה
             if not card_path:
                 card_path, ext = find_card_file_unbeatable(item['Name'])
 
