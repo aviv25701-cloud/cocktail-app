@@ -180,7 +180,6 @@ st.markdown("---")
 # ==============================================================================
 st.subheader("3. בחר קוקטיילים לתפריט")
 
-# חיפוש מהיר
 search_q = st.text_input("🔍 חיפוש מהיר של קוקטייל / מיקסר:", placeholder="הקלד שם...")
 
 selected_drinks = []
@@ -218,7 +217,6 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
     if not selected_drinks:
         st.error("❌ אנא בחר לפחות משקה אחד!")
     else:
-        # חישוב טיפוגרפיה אוטומטי לפי כמות המוצרים
         num_items = len(selected_drinks)
         if num_items <= 4:
             font_title, font_item, font_desc, item_gap = "22pt", "14pt", "10pt", "18px"
@@ -262,9 +260,15 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 width: 100%; height: 100%; padding: 14mm 10mm;
                 border: 2px solid {border_color};
             }}
+            .header {{
+                text-align: center;
+                margin-bottom: 25px; /* מרווח נדיב וברור בין הכותרת למוצר הראשון */
+            }}
             .header h1 {{
-                font-size: {font_title}; text-align: center; margin: 0 0 10px 0;
-                letter-spacing: 1px; text-transform: uppercase;
+                font-size: {font_title};
+                margin: 0;
+                letter-spacing: 1px;
+                text-transform: uppercase;
             }}
             .drinks-list {{
                 display: flex; flex-direction: column; justify-content: space-around; flex-grow: 1;
