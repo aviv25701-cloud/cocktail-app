@@ -12,7 +12,7 @@ import random
 import re
 import google.generativeai as genai
 
-st.set_page_config(page_title="מחולל תפריטים דינמי v14.0 Pro Ultimate", layout="centered", page_icon="🍹")
+st.set_page_config(page_title="מחולל תפריטים דינמי v14.1 Fixed Mixer Matching", layout="centered", page_icon="🍹")
 
 st.title("🍹 מחולל תפריטים והצעות הגשה")
 st.write("מערכת חכמה לסוכני שטח – התאמה אישית, טיפוגרפיה מתקדמת, רקעים נקיים וייצוא PDF.")
@@ -90,16 +90,18 @@ def build_guarded_clean_prompt(text):
     strict_clean_suffix = "minimalist plain surface texture, subtle smooth background, full bleed, no objects, no glasses, no cups, no frames, no borders, no chalkboards, no text, no drawings, no clutter"
     return f"{base_desc}, {strict_clean_suffix}"
 
-# --- פונקציית סריקה רקורסיבית מקיפה וחכמה להתאמת קבצים ---
+# --- פונקציית סריקה דו-שלבית מדויקת למניעת התנגשויות בין קוקטייל למיקסר ---
 def find_card_file_unbeatable(drink_name):
-    def normalize_str(s):
-        # הסרת מילים נפוצות, סימני פיסוק ורווחים לקבלת מחרוזת נקייה
-        s_clean = re.sub(r'(מיקסר|mixer|[-_,\(\)])', '', str(s), flags=re.IGNORECASE)
-        return "".join(c.lower() for c in s_clean if c.isalnum())
-
-    target_clean = normalize_str(drink_name)
     valid_extensions = ['.png', '.jpg', '.jpeg', '.pdf']
 
+    # ניקוי קשיח (שומר על המילים 'מיקסר' ו-'mixer' כדי להבדיל בין המוצרים)
+    def clean_strict(s):
+        name_only = os.path.splitext(str(s))[0]
+        return "".join(c.lower() for c in name_only if c.isalnum())
+
+    target_strict = clean_strict(drink_name)
+
+    # שלב 1: חיפוש מדויק וקשיח
     for root, dirs, files in os.walk("."):
         if "/." in root or root.startswith("./."):
             continue
@@ -109,9 +111,27 @@ def find_card_file_unbeatable(drink_name):
             ext_lower = ext.lower()
             
             if ext_lower in valid_extensions:
-                if normalize_str(name_without_ext) == target_clean:
-                    full_path = os.path.join(root, filename)
-                    return full_path, ext_lower
+                if clean_strict(name_without_ext) == target_strict:
+                    return os.path.join(root, filename), ext_lower
+
+    # שלב 2: חיפוש גמיש (רק במידה ולא נמצאה התאמה מדויקת בשלב 1)
+    def clean_lenient(s):
+        s_clean = re.sub(r'(מיקסר|mixer|[-_,\(\)])', '', str(s), flags=re.IGNORECASE)
+        return "".join(c.lower() for c in s_clean if c.isalnum())
+
+    target_lenient = clean_lenient(drink_name)
+    
+    for root, dirs, files in os.walk("."):
+        if "/." in root or root.startswith("./."):
+            continue
+            
+        for filename in files:
+            name_without_ext, ext = os.path.splitext(filename)
+            ext_lower = ext.lower()
+            
+            if ext_lower in valid_extensions:
+                if clean_lenient(name_without_ext) == target_lenient:
+                    return os.path.join(root, filename), ext_lower
 
     return None, None
 
@@ -422,19 +442,17 @@ if uploaded_logo:
     logo_base64 = base64.b64encode(logo_bytes).decode("utf-8")
 
 # ==============================================================================
-# 🍹 5. בחירת מוצרים, תמחור, סינון וחיפוש בזמן אמת (שודרג!)
+# 🍹 5. בחירת מוצרים, תמחור, סינון וחיפוש בזמן אמת
 # ==============================================================================
 st.markdown("---")
 st.subheader("5. בחירת מוצרים, תמחור ועריכה בזמן אמת")
 
-# --- סרגל חיפוש וסינון מהיר לסוכנים ---
 col_search, col_filter = st.columns([2, 1])
 with col_search:
     search_query = st.text_input("🔍 חיפוש משקה לפי שם:", placeholder="למשל: PURPLE, MARGARITA...")
 with col_filter:
     category_filter = st.selectbox("📂 סינון לפי סוג:", ["הכל", "קוקטיילים בלבד", "מיקסרים בלבד"])
 
-# --- כפתורי בחירה מהירה ---
 col_btn1, col_btn2, _ = st.columns([1, 1, 2])
 with col_btn1:
     if st.button("✅ בחר הכל", use_container_width=True):
@@ -454,7 +472,6 @@ for idx, row in df_cocktails.iterrows():
     drink_name = str(row.get('Name', f'מוצר {idx+1}'))
     ingredients_val = str(row.get('Ingredients', '')) if pd.notna(row.get('Ingredients')) else ''
 
-    # סינון לפי קטגוריה וחיפוש
     is_mixer = "מיקסר" in drink_name or "mixer" in drink_name.lower()
     
     if category_filter == "קוקטיילים בלבד" and is_mixer:
@@ -465,7 +482,6 @@ for idx, row in df_cocktails.iterrows():
     if search_query and search_query.lower() not in drink_name.lower():
         continue
 
-    # ניהול מצב סימון עמיד
     state_key = f"select_state_{idx}"
     if state_key not in st.session_state:
         st.session_state[state_key] = False
@@ -653,10 +669,10 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן מעוצבות"
 
         cards_html = ""
         for item in selected_drinks_data:
-            # חיפוש חכם 1: לפי שם מקורי בשיטס (למשל "מיקסר - PURPLE KISS")
+            # חיפוש מדויק לפי שם מקורי בשיטס
             card_path, ext = find_card_file_unbeatable(item['OriginalName'])
             
-            # חיפוש חכם 2: לפי השם ששונה בעריכה
+            # חיפוש משני לפי שם ערוך
             if not card_path:
                 card_path, ext = find_card_file_unbeatable(item['Name'])
 
