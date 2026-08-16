@@ -79,7 +79,6 @@ def get_mooza_logo_base64(color_type):
 
     target_keywords = ['לבן', 'white'] if color_type == 'white' else ['שחור', 'black']
 
-    # סריקה 1: התאמה לפי צבע + לוגו
     for root, dirs, files in os.walk("."):
         if "/." in root or root.startswith("./."):
             continue
@@ -91,7 +90,6 @@ def get_mooza_logo_base64(color_type):
                     with open(os.path.join(root, filename), "rb") as f:
                         return base64.b64encode(f.read()).decode("utf-8")
 
-    # סריקה 2: גיבוי כללי לכל קובץ שמכיל את המילה logo
     for root, dirs, files in os.walk("."):
         if "/." in root or root.startswith("./."):
             continue
@@ -204,7 +202,6 @@ if bg_b64:
 else:
     bg_css_rule = f"background-color: {fallback_color};"
 
-# חיווי סטטוס לוגו מוזה
 if show_mooza_logo:
     if mooza_logo_b64:
         st.caption("✅ לוגו מוזה אותר בהצלחה ויוצג בתחתית התפריט.")
@@ -302,7 +299,6 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
             </div>
             """
 
-        # בניית הלוגואים בתחתית (ממורכזים, לצד זה עם מרווח 5 מ"מ ברינדור יציב)
         client_logo_tag = f'<img src="data:image/png;base64,{client_logo_b64}" class="footer-logo-img">' if client_logo_b64 else ''
         mooza_logo_tag = f'<img src="data:image/png;base64,{mooza_logo_b64}" class="footer-logo-img">' if (show_mooza_logo and mooza_logo_b64) else ''
         
@@ -341,11 +337,11 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 padding-top: 20mm;   /* 20 מ"מ מראש התפריט אל הכותרת */
                 padding-left: 10mm;
                 padding-right: 10mm;
-                padding-bottom: 10mm;
+                padding-bottom: 8mm;
             }}
             .header {{
                 text-align: center;
-                margin-bottom: 16mm; /* בדיוק 16 מ"מ רווח בין הכותרת למוצר הראשון */
+                margin-bottom: 16mm; /* 16 מ"מ רווח בין הכותרת למוצר הראשון */
             }}
             .header h1 {{
                 font-size: {font_title};
@@ -387,19 +383,19 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 text-align: center;
                 margin-top: auto;
                 width: 100%;
-                padding-top: 5mm;
+                padding-top: 4mm;
             }}
             .footer-logos-inner {{
                 display: inline-block;
                 text-align: center;
             }}
             .footer-logo-img {{
-                max-height: 18mm;
-                max-width: 42mm;
+                max-height: 50mm; /* הוגדל פי 3 (במקום 18 מ"מ) */
+                max-width: 50mm;  /* התאמה לפריסה מושלמת וממורכזת */
                 height: auto;
                 width: auto;
                 vertical-align: middle;
-                margin: 0 2.5mm; /* מרווח של 5 מ"מ כולל בין הלוגואים */
+                margin: 0 2.5mm;  /* מרווח 5 מ"מ בין הלוגואים */
                 display: inline-block;
             }}
         </style>
