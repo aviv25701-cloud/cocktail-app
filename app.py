@@ -56,7 +56,7 @@ if df_cocktails is None or df_cocktails.empty:
     st.error("⚠️ לא ניתן לטעון את מאגר הקוקטיילים. אנא ודא שקישור הגוגל שיטס תקין וציבורי.")
     st.stop()
 
-# --- פונקציה חכמה לטעינת קבצי הרקע שהעלית (תומכת גם בסיומת .png.jpg) ---
+# --- פונקציה לשליפת רקע הטמפלייט מתוך תיקיית הפרויקט ---
 def get_template_bg_base64(template_keyword):
     for root, dirs, files in os.walk("."):
         if "/." in root or root.startswith("./."):
@@ -65,6 +65,20 @@ def get_template_bg_base64(template_keyword):
             clean_name = filename.lower()
             if template_keyword.lower() in clean_name:
                 if any(clean_name.endswith(ext) for ext in ['.jpg', '.jpeg', '.png']):
+                    with open(os.path.join(root, filename), "rb") as f:
+                        return base64.b64encode(f.read()).decode("utf-8")
+    return ""
+
+# --- פונקציה חכמה לשליפת לוגו העסק הקבוע (לבן/שחור) ---
+def get_brand_logo_base64(color_type):
+    targets = ['לבן', 'white'] if color_type == 'white' else ['שחור', 'black']
+    for root, dirs, files in os.walk("."):
+        if "/." in root or root.startswith("./."):
+            continue
+        for filename in files:
+            clean_name = filename.lower()
+            if 'logo' in clean_name and any(t in clean_name for t in targets):
+                if any(clean_name.endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
                     with open(os.path.join(root, filename), "rb") as f:
                         return base64.b64encode(f.read()).decode("utf-8")
     return ""
@@ -103,49 +117,22 @@ def find_card_file_unbeatable(drink_name):
 
     return None, None
 
-def remove_white_background(image_bytes):
-    try:
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
-        datas = img.getdata()
-        new_data = []
-        for item in datas:
-            if item[0] > 225 and item[1] > 225 and item[2] > 225:
-                new_data.append((255, 255, 255, 0))
-            else:
-                new_data.append(item)
-        img.putdata(new_data)
-        output = io.BytesIO()
-        img.save(output, format="PNG")
-        return output.getvalue()
-    except Exception:
-        return image_bytes
-
 # ==============================================================================
-# 📝 שלב 1: פרטי הלקוח והתפריט
+# 📝 שלב 1: פרטי התפריט
 # ==============================================================================
 st.subheader("1. פרטי התפריט")
-
-col_t1, col_t2 = st.columns([2, 1])
-with col_t1:
-    menu_title = st.text_input("כותרת התפריט:", value="COCKTAIL MENU")
-with col_t2:
-    uploaded_logo = st.file_uploader("לוגו בית העסק (PNG/JPG):", type=["png", "jpg", "jpeg"])
-
-logo_base64 = ""
-if uploaded_logo:
-    logo_bytes = remove_white_background(uploaded_logo.read())
-    logo_base64 = base64.b64encode(logo_bytes).decode("utf-8")
+menu_title = st.text_input("כותרת התפריט:", value="COCKTAIL MENU")
 
 st.markdown("---")
 
 # ==============================================================================
-# 🎨 שלב 2: בחירת טמפלייט (2 טמפלייטים קבועים בלבד)
+# 🎨 שלב 2: בחירת טמפלייט
 # ==============================================================================
 st.subheader("2. בחר טמפלייט לתפריט")
 
 template_choice = st.radio(
     "בחר תבנית עיצוב:",
-    ["טמפלייט 1 (מלל בהיר #f6f6f6)", "טמפלייט 2 (מלל שחור #000000)"],
+    ["טמפלייט 1 (מלל ולוגו לבן)", "טמפלייט 2 (מלל ולוגו שחור)"],
     horizontal=True
 )
 
@@ -153,11 +140,13 @@ if "טמפלייט 1" in template_choice:
     text_color = "#f6f6f6"
     desc_color = "#f6f6f6"
     bg_b64 = get_template_bg_base64("template2")
+    logo_b64 = get_brand_logo_base64("white")
     fallback_color = "#1a1a1a"
 else:  # טמפלייט 2
     text_color = "#000000"
     desc_color = "#000000"
     bg_b64 = get_template_bg_base64("template3")
+    logo_b64 = get_brand_logo_base64("black")
     fallback_color = "#ffffff"
 
 if bg_b64:
@@ -165,7 +154,7 @@ if bg_b64:
 else:
     bg_css_rule = f"background-color: {fallback_color};"
 
-st.caption(f"🎨 צבע המלל נקבע אוטומטית ל: `{text_color}`")
+st.caption(f"🎨 צבע המלל והלוגו הותאמו אוטומטית לתבנית שנבחרה.")
 
 st.markdown("---")
 
@@ -258,7 +247,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
             </div>
             """
 
-        logo_html = f'<img src="data:image/png;base64,{logo_base64}" class="logo">' if logo_base64 else ''
+        logo_html = f'<div class="brand-logo-container"><img src="data:image/png;base64,{logo_b64}" class="brand-logo"></div>' if logo_b64 else ''
 
         menu_html = f"""
         <!DOCTYPE html>
@@ -274,37 +263,76 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 {bg_css_rule}
                 font-family: 'Heebo', sans-serif;
                 color: {text_color};
+                position: relative;
+            }}
+            .brand-logo-container {{
+                position: absolute;
+                top: 10mm;
+                right: 10mm;
+                z-index: 100;
+            }}
+            .brand-logo {{
+                max-height: 14mm;
+                max-width: 32mm;
+                object-fit: contain;
             }}
             .menu-container {{
-                display: flex; flex-direction: column; justify-content: space-between;
-                width: 100%; height: 100%; padding: 14mm 10mm;
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
+                width: 100%;
+                height: 100%;
+                padding-top: 20mm;   /* מרחק של 20 מ"מ מראש התפריט אל הכותרת */
+                padding-left: 10mm;
+                padding-right: 10mm;
+                padding-bottom: 12mm;
             }}
             .header {{
                 text-align: center;
-                margin-bottom: 25px;
+                margin-bottom: 20mm; /* מרחק קבוע של 20 מ"מ בין הכותרת למוצר הראשון */
             }}
             .header h1 {{
                 font-size: {font_title};
                 margin: 0;
                 color: {text_color};
-                letter-spacing: 1px;
+                letter-spacing: 1.5px;
                 text-transform: uppercase;
             }}
             .drinks-list {{
-                display: flex; flex-direction: column; justify-content: space-around; flex-grow: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-around;
+                flex-grow: 1;
             }}
             .menu-item {{ margin-bottom: {item_gap}; }}
-            .item-header {{ display: flex; justify-content: space-between; font-weight: bold; font-size: {font_item}; color: {text_color}; }}
-            .item-desc {{ font-size: {font_desc}; color: {desc_color}; margin-top: 2px; line-height: 1.2; }}
-            .footer {{ text-align: center; margin-top: auto; }}
-            .logo {{ max-height: 22mm; max-width: 60mm; object-fit: contain; }}
+            .item-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: baseline;
+                font-weight: bold;
+                font-size: {font_item};
+                color: {text_color};
+            }}
+            .item-name {{
+                white-space: nowrap;
+            }}
+            .item-price {{
+                margin-left: 18mm; /* מקרב את המחיר מהדופן השמאלית מעט פנימה לכיוון המרכז */
+                white-space: nowrap;
+            }}
+            .item-desc {{
+                font-size: {font_desc};
+                color: {desc_color};
+                margin-top: 2px;
+                line-height: 1.25;
+            }}
         </style>
         </head>
         <body>
+            {logo_html}
             <div class="menu-container">
                 <div class="header"><h1>{menu_title}</h1></div>
                 <div class="drinks-list">{menu_items_html}</div>
-                <div class="footer">{logo_html}</div>
             </div>
         </body>
         </html>
