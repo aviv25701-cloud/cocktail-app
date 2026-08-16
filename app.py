@@ -128,7 +128,7 @@ if uploaded_logo:
 st.markdown("---")
 
 # ==============================================================================
-# 🎨 שלב 2: בחירת סגנון עיצוב (מהיר ובקליק אחד)
+# 🎨 שלב 2: בחירת סגנון עיצוב
 # ==============================================================================
 st.subheader("2. בחר סגנון עיצוב")
 
@@ -148,7 +148,6 @@ if style_choice == "🤍 לבן קלאסי ונקי":
     text_color = "#111111"
     desc_color = "#555555"
     border_color = "#111111"
-
 elif style_choice == "🪵 עץ אלון טבעי":
     prompt_encoded = urllib.parse.quote("seamless dark wood texture background, flat surface, minimalist")
     bg_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&nologo=true"
@@ -156,7 +155,6 @@ elif style_choice == "🪵 עץ אלון טבעי":
     text_color = "#ffffff"
     desc_color = "#dddddd"
     border_color = "#ffffff"
-
 elif style_choice == "🏛️ שיש כהה אלגנטי":
     prompt_encoded = urllib.parse.quote("seamless dark black marble stone texture background, flat surface, minimalist")
     bg_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&nologo=true"
@@ -164,9 +162,8 @@ elif style_choice == "🏛️ שיש כהה אלגנטי":
     text_color = "#ffffff"
     desc_color = "#cccccc"
     border_color = "#c5a059"
-
 elif style_choice == "🪄 עיצוב חופשי ב-AI":
-    custom_ai_prompt = st.text_input("תאר את האווירה שתרצה (בכמה מילים):", placeholder="למשל: בר על הגג בשקיעה, מרקם בטון מורדני...")
+    custom_ai_prompt = st.text_input("תאר את האווירה שתרצה (בכמה מילים):", placeholder="למשל: בר על הגג בשקיעה, מרקם בטון מודרני...")
     if custom_ai_prompt:
         clean_p = f"minimalist flat texture background for menu, {custom_ai_prompt}, no text, no objects"
         prompt_encoded = urllib.parse.quote(clean_p)
@@ -183,7 +180,6 @@ st.subheader("3. בחר קוקטיילים לתפריט")
 search_q = st.text_input("🔍 חיפוש מהיר של קוקטייל / מיקסר:", placeholder="הקלד שם...")
 
 selected_drinks = []
-
 for idx, row in df_cocktails.iterrows():
     drink_name = str(row.get('Name', ''))
     ingredients = str(row.get('Ingredients', ''))
@@ -260,15 +256,9 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 width: 100%; height: 100%; padding: 14mm 10mm;
                 border: 2px solid {border_color};
             }}
-            .header {{
-                text-align: center;
-                margin-bottom: 25px; /* מרווח נדיב וברור בין הכותרת למוצר הראשון */
-            }}
             .header h1 {{
-                font-size: {font_title};
-                margin: 0;
-                letter-spacing: 1px;
-                text-transform: uppercase;
+                font-size: {font_title}; text-align: center; margin: 0 0 10px 0;
+                letter-spacing: 1px; text-transform: uppercase;
             }}
             .drinks-list {{
                 display: flex; flex-direction: column; justify-content: space-around; flex-grow: 1;
