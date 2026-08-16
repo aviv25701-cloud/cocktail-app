@@ -228,11 +228,11 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
     else:
         num_items = len(selected_drinks)
         if num_items <= 4:
-            font_title, font_item, font_desc, item_gap = "22pt", "14pt", "10pt", "18px"
+            font_title, font_item, font_desc, item_gap = "30pt", "14pt", "10pt", "18px"
         elif num_items <= 7:
-            font_title, font_item, font_desc, item_gap = "19pt", "12pt", "9pt", "12px"
+            font_title, font_item, font_desc, item_gap = "26pt", "12pt", "9pt", "12px"
         else:
-            font_title, font_item, font_desc, item_gap = "16pt", "10.5pt", "8pt", "6px"
+            font_title, font_item, font_desc, item_gap = "24pt", "10.5pt", "8pt", "6px"
 
         menu_items_html = ""
         for item in selected_drinks:
@@ -267,13 +267,13 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
             }}
             .brand-logo-container {{
                 position: absolute;
-                top: 10mm;
-                right: 10mm;
+                top: 8mm;
+                right: 8mm;
                 z-index: 100;
             }}
             .brand-logo {{
-                max-height: 14mm;
-                max-width: 32mm;
+                max-height: 20mm; /* הוגדל מ-14 מ"מ */
+                max-width: 45mm;  /* הוגדל מ-32 מ"מ */
                 object-fit: contain;
             }}
             .menu-container {{
@@ -282,21 +282,22 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 justify-content: flex-start;
                 width: 100%;
                 height: 100%;
-                padding-top: 20mm;   /* מרחק של 20 מ"מ מראש התפריט אל הכותרת */
+                padding-top: 20mm;   /* 20 מ"מ מראש התפריט אל הכותרת */
                 padding-left: 10mm;
                 padding-right: 10mm;
                 padding-bottom: 12mm;
             }}
             .header {{
                 text-align: center;
-                margin-bottom: 20mm; /* מרחק קבוע של 20 מ"מ בין הכותרת למוצר הראשון */
+                margin-bottom: 16mm; /* בדיוק 16 מ"מ רווח בין הכותרת למוצר הראשון */
             }}
             .header h1 {{
-                font-size: {font_title};
+                font-size: {font_title}; /* כותרת מוגדלת משמעותית */
                 margin: 0;
                 color: {text_color};
-                letter-spacing: 1.5px;
+                letter-spacing: 2px;
                 text-transform: uppercase;
+                line-height: 1.1;
             }}
             .drinks-list {{
                 display: flex;
@@ -317,7 +318,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 white-space: nowrap;
             }}
             .item-price {{
-                margin-left: 18mm; /* מקרב את המחיר מהדופן השמאלית מעט פנימה לכיוון המרכז */
+                margin-left: 8mm; /* הוזז מעט שמאלה לכיוון השוליים */
                 white-space: nowrap;
             }}
             .item-desc {{
