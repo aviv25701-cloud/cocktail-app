@@ -7,6 +7,7 @@ from PIL import Image
 import io
 import requests
 import re
+import unicodedata
 
 st.set_page_config(page_title="מחולל תפריטים מהיר לסוכנים", layout="centered", page_icon="🍹")
 
@@ -69,18 +70,38 @@ def get_template_bg_base64(template_keyword):
                         return base64.b64encode(f.read()).decode("utf-8")
     return ""
 
-# --- פונקציה לשליפת לוגו מוזה (לבן/שחור) ---
+# --- פונקציה חסינת תקלות לשליפת לוגו מוזה (לבן/שחור) ---
 def get_mooza_logo_base64(color_type):
-    targets = ['לבן', 'white'] if color_type == 'white' else ['שחור', 'black']
+    valid_exts = ['.png', '.jpg', '.jpeg']
+    
+    def normalize(text):
+        return "".join(c.lower() for c in unicodedata.normalize('NFC', str(text)) if c.isalnum())
+
+    target_keywords = ['לבן', 'white'] if color_type == 'white' else ['שחור', 'black']
+
+    # סריקה 1: התאמה לפי צבע + לוגו
     for root, dirs, files in os.walk("."):
         if "/." in root or root.startswith("./."):
             continue
         for filename in files:
-            clean_name = filename.lower()
-            if 'logo' in clean_name and any(t in clean_name for t in targets):
-                if any(clean_name.endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
+            name_norm = normalize(filename)
+            _, ext = os.path.splitext(filename)
+            if ext.lower() in valid_exts and 'logo' in name_norm:
+                if any(normalize(k) in name_norm for k in target_keywords):
                     with open(os.path.join(root, filename), "rb") as f:
                         return base64.b64encode(f.read()).decode("utf-8")
+
+    # סריקה 2: גיבוי כללי לכל קובץ שמכיל את המילה logo
+    for root, dirs, files in os.walk("."):
+        if "/." in root or root.startswith("./."):
+            continue
+        for filename in files:
+            name_norm = normalize(filename)
+            _, ext = os.path.splitext(filename)
+            if ext.lower() in valid_exts and ('logo' in name_norm or 'מוזה' in name_norm or 'mooza' in name_norm):
+                with open(os.path.join(root, filename), "rb") as f:
+                    return base64.b64encode(f.read()).decode("utf-8")
+
     return ""
 
 # --- פונקציית סריקת כרטיסיות ברמן ---
@@ -89,7 +110,7 @@ def find_card_file_unbeatable(drink_name):
 
     def clean_strict(s):
         name_only = os.path.splitext(str(s))[0]
-        return "".join(c.lower() for c in name_only if c.isalnum())
+        return "".join(c.lower() for c in unicodedata.normalize('NFC', str(name_only)) if c.isalnum())
 
     target_strict = clean_strict(drink_name)
     for root, dirs, files in os.walk("."):
@@ -103,7 +124,7 @@ def find_card_file_unbeatable(drink_name):
 
     def clean_lenient(s):
         s_clean = re.sub(r'(מיקסר|mixer|[-_,\(\)])', '', str(s), flags=re.IGNORECASE)
-        return "".join(c.lower() for c in s_clean if c.isalnum())
+        return "".join(c.lower() for c in unicodedata.normalize('NFC', str(s_clean)) if c.isalnum())
 
     target_lenient = clean_lenient(drink_name)
     for root, dirs, files in os.walk("."):
@@ -135,7 +156,7 @@ def remove_white_background(image_bytes):
         return image_bytes
 
 # ==============================================================================
-# 📝 שלב 1: פרטי התפריט והלוגואים
+# 📝 שלב 1: פרטי התפריט ולוגואים
 # ==============================================================================
 st.subheader("1. פרטי התפריט ולוגואים")
 
@@ -183,7 +204,12 @@ if bg_b64:
 else:
     bg_css_rule = f"background-color: {fallback_color};"
 
-st.caption(f"🎨 צבע המלל והלוגו הותאמו אוטומטית לתבנית שנבחרה.")
+# חיווי סטטוס לוגו מוזה
+if show_mooza_logo:
+    if mooza_logo_b64:
+        st.caption("✅ לוגו מוזה אותר בהצלחה ויוצג בתחתית התפריט.")
+    else:
+        st.warning("⚠️ לא אותר קובץ לוגו מוזה ב-GitHub. ודא שהעלית קובץ המכיל בשמו 'logo' ו-'לבן' / 'שחור'.")
 
 st.markdown("---")
 
@@ -276,7 +302,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
             </div>
             """
 
-        # בניית הלוגואים בתחתית (ממורכזים, זה לצד זה עם רווח 5 מ"מ)
+        # בניית הלוגואים בתחתית (ממורכזים, לצד זה עם מרווח 5 מ"מ ברינדור יציב)
         client_logo_tag = f'<img src="data:image/png;base64,{client_logo_b64}" class="footer-logo-img">' if client_logo_b64 else ''
         mooza_logo_tag = f'<img src="data:image/png;base64,{mooza_logo_b64}" class="footer-logo-img">' if (show_mooza_logo and mooza_logo_b64) else ''
         
@@ -284,8 +310,10 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
         if client_logo_tag or mooza_logo_tag:
             logos_footer_html = f"""
             <div class="footer-logos-container">
-                {client_logo_tag}
-                {mooza_logo_tag}
+                <div class="footer-logos-inner">
+                    {client_logo_tag}
+                    {mooza_logo_tag}
+                </div>
             </div>
             """
 
@@ -313,7 +341,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 padding-top: 20mm;   /* 20 מ"מ מראש התפריט אל הכותרת */
                 padding-left: 10mm;
                 padding-right: 10mm;
-                padding-bottom: 12mm;
+                padding-bottom: 10mm;
             }}
             .header {{
                 text-align: center;
@@ -356,17 +384,23 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 line-height: 1.25;
             }}
             .footer-logos-container {{
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                gap: 5mm; /* מרווח של 5 מ"מ בדיוק בין הלוגואים במרכז התחתון */
+                text-align: center;
                 margin-top: auto;
                 width: 100%;
+                padding-top: 5mm;
+            }}
+            .footer-logos-inner {{
+                display: inline-block;
+                text-align: center;
             }}
             .footer-logo-img {{
-                max-height: 16mm;
-                max-width: 40mm;
-                object-fit: contain;
+                max-height: 18mm;
+                max-width: 42mm;
+                height: auto;
+                width: auto;
+                vertical-align: middle;
+                margin: 0 2.5mm; /* מרווח של 5 מ"מ כולל בין הלוגואים */
+                display: inline-block;
             }}
         </style>
         </head>
