@@ -5,13 +5,12 @@ import base64
 import os
 from PIL import Image
 import io
-import urllib.parse
 import requests
 import re
 
 st.set_page_config(page_title="מחולל תפריטים מהיר לסוכנים", layout="centered", page_icon="🍹")
 
-# --- עיצוב CSS לממשק קל ונקי ---
+# --- סגנון ממשק נקי ופשוט ---
 st.markdown("""
 <style>
     .stCheckbox { font-size: 16px; font-weight: bold; }
@@ -21,7 +20,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🍹 מחולל תפריטים מהיר")
-st.caption("בחירת מוצרים ⬅️ בחירת עיצוב ⬅️ הורדת PDF מוכן ב-20 שניות.")
+st.caption("בחירת טמפלייט ⬅️ בחירת מוצרים ⬅️ הורדת תפריט וכרטיסיות ברמן ב-PDF.")
 
 # ==============================================================================
 # 🔗 חיבור לגוגל שיטס
@@ -57,6 +56,19 @@ if df_cocktails is None or df_cocktails.empty:
     st.error("⚠️ לא ניתן לטעון את מאגר הקוקטיילים. אנא ודא שקישור הגוגל שיטס תקין וציבורי.")
     st.stop()
 
+# --- פונקציה חכמה לטעינת קבצי הרקע שהעלית (תומכת גם בסיומת .png.jpg) ---
+def get_template_bg_base64(template_keyword):
+    for root, dirs, files in os.walk("."):
+        if "/." in root or root.startswith("./."):
+            continue
+        for filename in files:
+            clean_name = filename.lower()
+            if template_keyword.lower() in clean_name:
+                if any(clean_name.endswith(ext) for ext in ['.jpg', '.jpeg', '.png']):
+                    with open(os.path.join(root, filename), "rb") as f:
+                        return base64.b64encode(f.read()).decode("utf-8")
+    return ""
+
 # --- פונקציית סריקת כרטיסיות ברמן ---
 def find_card_file_unbeatable(drink_name):
     valid_extensions = ['.png', '.jpg', '.jpeg', '.pdf']
@@ -66,7 +78,6 @@ def find_card_file_unbeatable(drink_name):
         return "".join(c.lower() for c in name_only if c.isalnum())
 
     target_strict = clean_strict(drink_name)
-
     for root, dirs, files in os.walk("."):
         if "/." in root or root.startswith("./."):
             continue
@@ -110,15 +121,15 @@ def remove_white_background(image_bytes):
         return image_bytes
 
 # ==============================================================================
-# 📝 שלב 1: פרטים בסיסיים
+# 📝 שלב 1: פרטי הלקוח והתפריט
 # ==============================================================================
-st.subheader("1. פרטי הלקוח והתפריט")
+st.subheader("1. פרטי התפריט")
 
 col_t1, col_t2 = st.columns([2, 1])
 with col_t1:
     menu_title = st.text_input("כותרת התפריט:", value="COCKTAIL MENU")
 with col_t2:
-    uploaded_logo = st.file_uploader("לוגו העסק (PNG/JPG):", type=["png", "jpg", "jpeg"])
+    uploaded_logo = st.file_uploader("לוגו בית העסק (PNG/JPG):", type=["png", "jpg", "jpeg"])
 
 logo_base64 = ""
 if uploaded_logo:
@@ -128,67 +139,80 @@ if uploaded_logo:
 st.markdown("---")
 
 # ==============================================================================
-# 🎨 שלב 2: בחירת סגנון עיצוב
+# 🎨 שלב 2: בחירת טמפלייט (2 טמפלייטים קבועים בלבד)
 # ==============================================================================
-st.subheader("2. בחר סגנון עיצוב")
+st.subheader("2. בחר טמפלייט לתפריט")
 
-style_choice = st.radio(
-    "סגנון ויזואלי:",
-    ["🖤 שחור & זהב יוקרתי", "🤍 לבן קלאסי ונקי", "🪵 עץ אלון טבעי", "🏛️ שיש כהה אלגנטי", "🪄 עיצוב חופשי ב-AI"],
+template_choice = st.radio(
+    "בחר תבנית עיצוב:",
+    ["טמפלייט 1 (מלל בהיר #f6f6f6)", "טמפלייט 2 (מלל שחור #000000)"],
     horizontal=True
 )
 
-bg_css_rule = "background-color: #111111;"
-text_color = "#f3e5ab"
-desc_color = "#cccccc"
-border_color = "#c5a059"
+if "טמפלייט 1" in template_choice:
+    text_color = "#f6f6f6"
+    desc_color = "#f6f6f6"
+    bg_b64 = get_template_bg_base64("template2")
+    fallback_color = "#1a1a1a"
+else:  # טמפלייט 2
+    text_color = "#000000"
+    desc_color = "#000000"
+    bg_b64 = get_template_bg_base64("template3")
+    fallback_color = "#ffffff"
 
-if style_choice == "🤍 לבן קלאסי ונקי":
-    bg_css_rule = "background-color: #ffffff;"
-    text_color = "#111111"
-    desc_color = "#555555"
-    border_color = "#111111"
-elif style_choice == "🪵 עץ אלון טבעי":
-    prompt_encoded = urllib.parse.quote("seamless dark wood texture background, flat surface, minimalist")
-    bg_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&nologo=true"
-    bg_css_rule = f"background-image: url('{bg_url}'); background-size: cover;"
-    text_color = "#ffffff"
-    desc_color = "#dddddd"
-    border_color = "#ffffff"
-elif style_choice == "🏛️ שיש כהה אלגנטי":
-    prompt_encoded = urllib.parse.quote("seamless dark black marble stone texture background, flat surface, minimalist")
-    bg_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&nologo=true"
-    bg_css_rule = f"background-image: url('{bg_url}'); background-size: cover;"
-    text_color = "#ffffff"
-    desc_color = "#cccccc"
-    border_color = "#c5a059"
-elif style_choice == "🪄 עיצוב חופשי ב-AI":
-    custom_ai_prompt = st.text_input("תאר את האווירה שתרצה (בכמה מילים):", placeholder="למשל: בר על הגג בשקיעה, מרקם בטון מודרני...")
-    if custom_ai_prompt:
-        clean_p = f"minimalist flat texture background for menu, {custom_ai_prompt}, no text, no objects"
-        prompt_encoded = urllib.parse.quote(clean_p)
-        bg_url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=650&height=1200&nologo=true"
-        bg_css_rule = f"background-image: url('{bg_url}'); background-size: cover;"
+if bg_b64:
+    bg_css_rule = f"background-image: url(data:image/jpeg;base64,{bg_b64}); background-size: 100% 100%; background-position: center; background-repeat: no-repeat;"
+else:
+    bg_css_rule = f"background-color: {fallback_color};"
+
+st.caption(f"🎨 צבע המלל נקבע אוטומטית ל: `{text_color}`")
 
 st.markdown("---")
 
 # ==============================================================================
-# 🍹 שלב 3: בחירת קוקטיילים
+# 🍹 שלב 3: בחירת קוקטיילים לתפריט
 # ==============================================================================
 st.subheader("3. בחר קוקטיילים לתפריט")
 
-search_q = st.text_input("🔍 חיפוש מהיר של קוקטייל / מיקסר:", placeholder="הקלד שם...")
+col_search, col_filter = st.columns([2, 1])
+with col_search:
+    search_q = st.text_input("🔍 חיפוש משקה לפי שם:", placeholder="הקלד שם קוקטייל / מיקסר...")
+with col_filter:
+    cat_filter = st.selectbox("📂 סנן לפי סוג:", ["הכל", "קוקטיילים בלבד", "מיקסרים בלבד"])
+
+col_btn1, col_btn2, _ = st.columns([1, 1, 2])
+with col_btn1:
+    if st.button("✅ בחר הכל", use_container_width=True):
+        for idx_b in range(len(df_cocktails)):
+            st.session_state[f"select_state_{idx_b}"] = True
+        st.rerun()
+with col_btn2:
+    if st.button("❌ נקה הכל", use_container_width=True):
+        for idx_b in range(len(df_cocktails)):
+            st.session_state[f"select_state_{idx_b}"] = False
+        st.rerun()
 
 selected_drinks = []
+
 for idx, row in df_cocktails.iterrows():
     drink_name = str(row.get('Name', ''))
     ingredients = str(row.get('Ingredients', ''))
     item_id = str(row.get('ID', idx))
 
+    is_mixer = "מיקסר" in drink_name or "mixer" in drink_name.lower()
+    if cat_filter == "קוקטיילים בלבד" and is_mixer:
+        continue
+    if cat_filter == "מיקסרים בלבד" and not is_mixer:
+        continue
     if search_q and search_q.lower() not in drink_name.lower():
         continue
 
-    is_sel = st.checkbox(f"🍹 {drink_name}", key=f"chk_{idx}_{item_id}")
+    state_key = f"select_state_{idx}"
+    if state_key not in st.session_state:
+        st.session_state[state_key] = False
+
+    is_sel = st.checkbox(f"🍹 {drink_name}", value=st.session_state[state_key], key=f"chk_{idx}_{item_id}")
+    st.session_state[state_key] = is_sel
     
     if is_sel:
         col_n, col_p = st.columns([3, 1])
@@ -207,7 +231,7 @@ for idx, row in df_cocktails.iterrows():
 st.markdown("---")
 
 # ==============================================================================
-# 🚀 הפקת התפריט והורדה ב-1-Click
+# 🚀 הפקת התפריט והורדת PDF
 # ==============================================================================
 if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_container_width=True, type="primary"):
     if not selected_drinks:
@@ -254,17 +278,23 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
             .menu-container {{
                 display: flex; flex-direction: column; justify-content: space-between;
                 width: 100%; height: 100%; padding: 14mm 10mm;
-                border: 2px solid {border_color};
+            }}
+            .header {{
+                text-align: center;
+                margin-bottom: 25px;
             }}
             .header h1 {{
-                font-size: {font_title}; text-align: center; margin: 0 0 10px 0;
-                letter-spacing: 1px; text-transform: uppercase;
+                font-size: {font_title};
+                margin: 0;
+                color: {text_color};
+                letter-spacing: 1px;
+                text-transform: uppercase;
             }}
             .drinks-list {{
                 display: flex; flex-direction: column; justify-content: space-around; flex-grow: 1;
             }}
             .menu-item {{ margin-bottom: {item_gap}; }}
-            .item-header {{ display: flex; justify-content: space-between; font-weight: bold; font-size: {font_item}; }}
+            .item-header {{ display: flex; justify-content: space-between; font-weight: bold; font-size: {font_item}; color: {text_color}; }}
             .item-desc {{ font-size: {font_desc}; color: {desc_color}; margin-top: 2px; line-height: 1.2; }}
             .footer {{ text-align: center; margin-top: auto; }}
             .logo {{ max-height: 22mm; max-width: 60mm; object-fit: contain; }}
