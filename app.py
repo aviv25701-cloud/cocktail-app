@@ -69,8 +69,8 @@ def get_template_bg_base64(template_keyword):
                         return base64.b64encode(f.read()).decode("utf-8")
     return ""
 
-# --- פונקציה חכמה לשליפת לוגו העסק הקבוע (לבן/שחור) ---
-def get_brand_logo_base64(color_type):
+# --- פונקציה לשליפת לוגו מוזה (לבן/שחור) ---
+def get_mooza_logo_base64(color_type):
     targets = ['לבן', 'white'] if color_type == 'white' else ['שחור', 'black']
     for root, dirs, files in os.walk("."):
         if "/." in root or root.startswith("./."):
@@ -117,11 +117,40 @@ def find_card_file_unbeatable(drink_name):
 
     return None, None
 
+def remove_white_background(image_bytes):
+    try:
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+        datas = img.getdata()
+        new_data = []
+        for item in datas:
+            if item[0] > 225 and item[1] > 225 and item[2] > 225:
+                new_data.append((255, 255, 255, 0))
+            else:
+                new_data.append(item)
+        img.putdata(new_data)
+        output = io.BytesIO()
+        img.save(output, format="PNG")
+        return output.getvalue()
+    except Exception:
+        return image_bytes
+
 # ==============================================================================
-# 📝 שלב 1: פרטי התפריט
+# 📝 שלב 1: פרטי התפריט והלוגואים
 # ==============================================================================
-st.subheader("1. פרטי התפריט")
-menu_title = st.text_input("כותרת התפריט:", value="COCKTAIL MENU")
+st.subheader("1. פרטי התפריט ולוגואים")
+
+col_t1, col_t2 = st.columns([2, 1])
+with col_t1:
+    menu_title = st.text_input("כותרת התפריט:", value="COCKTAIL MENU")
+with col_t2:
+    uploaded_logo = st.file_uploader("לוגו בית העסק (PNG/JPG - רשות):", type=["png", "jpg", "jpeg"])
+
+show_mooza_logo = st.checkbox("הצג לוגו מוזה בתחתית התפריט", value=True)
+
+client_logo_b64 = ""
+if uploaded_logo:
+    logo_bytes = remove_white_background(uploaded_logo.read())
+    client_logo_b64 = base64.b64encode(logo_bytes).decode("utf-8")
 
 st.markdown("---")
 
@@ -140,13 +169,13 @@ if "טמפלייט 1" in template_choice:
     text_color = "#f6f6f6"
     desc_color = "#f6f6f6"
     bg_b64 = get_template_bg_base64("template2")
-    logo_b64 = get_brand_logo_base64("white")
+    mooza_logo_b64 = get_mooza_logo_base64("white")
     fallback_color = "#1a1a1a"
 else:  # טמפלייט 2
     text_color = "#000000"
     desc_color = "#000000"
     bg_b64 = get_template_bg_base64("template3")
-    logo_b64 = get_brand_logo_base64("black")
+    mooza_logo_b64 = get_mooza_logo_base64("black")
     fallback_color = "#ffffff"
 
 if bg_b64:
@@ -247,7 +276,18 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
             </div>
             """
 
-        logo_html = f'<div class="brand-logo-container"><img src="data:image/png;base64,{logo_b64}" class="brand-logo"></div>' if logo_b64 else ''
+        # בניית הלוגואים בתחתית (ממורכזים, זה לצד זה עם רווח 5 מ"מ)
+        client_logo_tag = f'<img src="data:image/png;base64,{client_logo_b64}" class="footer-logo-img">' if client_logo_b64 else ''
+        mooza_logo_tag = f'<img src="data:image/png;base64,{mooza_logo_b64}" class="footer-logo-img">' if (show_mooza_logo and mooza_logo_b64) else ''
+        
+        logos_footer_html = ""
+        if client_logo_tag or mooza_logo_tag:
+            logos_footer_html = f"""
+            <div class="footer-logos-container">
+                {client_logo_tag}
+                {mooza_logo_tag}
+            </div>
+            """
 
         menu_html = f"""
         <!DOCTYPE html>
@@ -263,18 +303,6 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 {bg_css_rule}
                 font-family: 'Heebo', sans-serif;
                 color: {text_color};
-                position: relative;
-            }}
-            .brand-logo-container {{
-                position: absolute;
-                top: 8mm;
-                right: 8mm;
-                z-index: 100;
-            }}
-            .brand-logo {{
-                max-height: 20mm; /* הוגדל מ-14 מ"מ */
-                max-width: 45mm;  /* הוגדל מ-32 מ"מ */
-                object-fit: contain;
             }}
             .menu-container {{
                 display: flex;
@@ -292,7 +320,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 margin-bottom: 16mm; /* בדיוק 16 מ"מ רווח בין הכותרת למוצר הראשון */
             }}
             .header h1 {{
-                font-size: {font_title}; /* כותרת מוגדלת משמעותית */
+                font-size: {font_title};
                 margin: 0;
                 color: {text_color};
                 letter-spacing: 2px;
@@ -318,7 +346,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 white-space: nowrap;
             }}
             .item-price {{
-                margin-left: 8mm; /* הוזז מעט שמאלה לכיוון השוליים */
+                margin-left: 8mm;
                 white-space: nowrap;
             }}
             .item-desc {{
@@ -327,13 +355,26 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 margin-top: 2px;
                 line-height: 1.25;
             }}
+            .footer-logos-container {{
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 5mm; /* מרווח של 5 מ"מ בדיוק בין הלוגואים במרכז התחתון */
+                margin-top: auto;
+                width: 100%;
+            }}
+            .footer-logo-img {{
+                max-height: 16mm;
+                max-width: 40mm;
+                object-fit: contain;
+            }}
         </style>
         </head>
         <body>
-            {logo_html}
             <div class="menu-container">
                 <div class="header"><h1>{menu_title}</h1></div>
                 <div class="drinks-list">{menu_items_html}</div>
+                {logos_footer_html}
             </div>
         </body>
         </html>
