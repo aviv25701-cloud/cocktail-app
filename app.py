@@ -174,7 +174,7 @@ if uploaded_logo:
 st.markdown("---")
 
 # ==============================================================================
-# 🎨 שלב 2: בחירת טמפלייט
+# 🎨 שלב 2: בחירת טמפלייט (4 טמפלייטים קבועים)
 # ==============================================================================
 st.subheader("2. בחר טמפלייט לתפריט")
 
@@ -207,7 +207,7 @@ elif "טמפלייט 3" in template_choice:
     bg_b64 = get_template_bg_base64("template4")
     mooza_logo_b64 = get_mooza_logo_base64("black")
     fallback_color = "#ffffff"
-else:  # טמפלייט 4
+else:  # טמפלייט 4 (לוגו לבן ומלל חום)
     text_color = "#703424"
     desc_color = "#703424"
     bg_b64 = get_template_bg_base64("template5")
@@ -364,7 +364,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 padding-top: 20mm;   /* 20 מ"מ מראש התפריט אל הכותרת */
                 padding-left: 14mm;
                 padding-right: 14mm;
-                padding-bottom: 2mm; /* הרחבה שמקרבת את המוצרים עוד 20 מ"מ לכיוון הלוגו */
+                padding-bottom: 2mm; /* ניצול שטח מושלם */
             }}
             .header {{
                 text-align: center;
@@ -399,7 +399,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
             }}
             .item-price {{
                 white-space: nowrap;
-                margin-left: 10mm; /* הזזה של 10 מ"מ ימינה לכיוון המרכז */
+                margin-left: 5mm; /* בדיוק 5 מ"מ שמאלה - מאוזן מושלם */
             }}
             .item-desc {{
                 font-size: {font_desc};
@@ -411,7 +411,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 text-align: center;
                 margin-top: auto;
                 width: 100%;
-                padding-bottom: 1mm; /* הורדת הלוגו 10 מ"מ נמוך יותר */
+                padding-bottom: 1mm;
             }}
             .footer-logos-inner {{
                 display: inline-block;
