@@ -174,7 +174,7 @@ if uploaded_logo:
 st.markdown("---")
 
 # ==============================================================================
-# 🎨 שלב 2: בחירת טמפלייט (4 טמפלייטים קבועים)
+# 🎨 שלב 2: בחירת טמפלייט
 # ==============================================================================
 st.subheader("2. בחר טמפלייט לתפריט")
 
@@ -207,7 +207,7 @@ elif "טמפלייט 3" in template_choice:
     bg_b64 = get_template_bg_base64("template4")
     mooza_logo_b64 = get_mooza_logo_base64("black")
     fallback_color = "#ffffff"
-else:  # טמפלייט 4 (לוגו לבן ומלל חום)
+else:  # טמפלייט 4
     text_color = "#703424"
     desc_color = "#703424"
     bg_b64 = get_template_bg_base64("template5")
@@ -297,11 +297,11 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
     else:
         num_items = len(selected_drinks)
         if num_items <= 4:
-            font_title, font_item, font_desc, item_gap = "30pt", "16pt", "11.5pt", "20px"
+            font_title, font_item, font_desc, item_gap = "30pt", "16pt", "11.5pt", "22px"
         elif num_items <= 7:
-            font_title, font_item, font_desc, item_gap = "26pt", "14pt", "10.5pt", "14px"
+            font_title, font_item, font_desc, item_gap = "26pt", "14pt", "10.5pt", "16px"
         else:
-            font_title, font_item, font_desc, item_gap = "24pt", "12pt", "9.5pt", "8px"
+            font_title, font_item, font_desc, item_gap = "24pt", "12pt", "9.5pt", "10px"
 
         menu_items_html = ""
         for item in selected_drinks:
@@ -337,10 +337,20 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
         <meta charset="UTF-8">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap');
-            @page {{ size: 130mm 240mm; margin: 0; }}
+            
+            /* הגדרת דפוס מקצועית: 130x240 מ"מ נטו, בליד 3 מ"מ וצלבי חיתוך */
+            @page {{
+                size: 130mm 240mm;
+                margin: 0;
+                bleed: 3mm;
+                marks: crop cross;
+            }}
             * {{ box-sizing: border-box; }}
             html, body {{
-                width: 130mm; height: 240mm; margin: 0; padding: 0;
+                width: 130mm;
+                height: 240mm;
+                margin: 0;
+                padding: 0;
                 {bg_css_rule}
                 font-family: 'Heebo', sans-serif;
                 color: {text_color};
@@ -352,9 +362,9 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 width: 100%;
                 height: 100%;
                 padding-top: 20mm;   /* 20 מ"מ מראש התפריט אל הכותרת */
-                padding-left: 8mm;   /* מושך את המחירים שמאלה */
-                padding-right: 14mm; /* הזחה של שמות הקוקטיילים פנימה */
-                padding-bottom: 4mm; /* ניצול שטח עד הלוגואים */
+                padding-left: 14mm;
+                padding-right: 14mm;
+                padding-bottom: 2mm; /* הרחבה שמקרבת את המוצרים עוד 20 מ"מ לכיוון הלוגו */
             }}
             .header {{
                 text-align: center;
@@ -389,7 +399,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
             }}
             .item-price {{
                 white-space: nowrap;
-                margin-left: 0;
+                margin-left: 10mm; /* הזזה של 10 מ"מ ימינה לכיוון המרכז */
             }}
             .item-desc {{
                 font-size: {font_desc};
@@ -401,15 +411,15 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 text-align: center;
                 margin-top: auto;
                 width: 100%;
-                padding-bottom: 5mm;
+                padding-bottom: 1mm; /* הורדת הלוגו 10 מ"מ נמוך יותר */
             }}
             .footer-logos-inner {{
                 display: inline-block;
                 text-align: center;
             }}
             .footer-logo-img {{
-                max-height: 48mm;
-                max-width: 48mm;
+                max-height: 46mm;
+                max-width: 46mm;
                 height: auto;
                 width: auto;
                 vertical-align: middle;
@@ -463,11 +473,11 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
         HTML(string=menu_html).write_pdf("temp_menu.pdf")
         HTML(string=instructions_html).write_pdf("temp_instructions.pdf")
 
-        st.success("🎉 התפריט והכרטיסיות מוכנים!")
+        st.success("🎉 התפריט והכרטיסיות מוכנים להדפסה!")
         c_d1, c_d2 = st.columns(2)
         with c_d1:
             with open("temp_menu.pdf", "rb") as f_m:
-                st.download_button("📥 הורד תפריט (PDF)", data=f_m, file_name="menu.pdf", mime="application/pdf", use_container_width=True)
+                st.download_button("📥 הורד תפריט (PDF לדפוס עם בליד)", data=f_m, file_name="menu.pdf", mime="application/pdf", use_container_width=True)
         with c_d2:
             with open("temp_instructions.pdf", "rb") as f_i:
                 st.download_button("📥 הורד כרטיסיות ברמן (A4)", data=f_i, file_name="serving_cards.pdf", mime="application/pdf", use_container_width=True)
