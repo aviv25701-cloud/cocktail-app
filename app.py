@@ -174,13 +174,18 @@ if uploaded_logo:
 st.markdown("---")
 
 # ==============================================================================
-# 🎨 שלב 2: בחירת טמפלייט
+# 🎨 שלב 2: בחירת טמפלייט (4 טמפלייטים קבועים)
 # ==============================================================================
 st.subheader("2. בחר טמפלייט לתפריט")
 
 template_choice = st.radio(
     "בחר תבנית עיצוב:",
-    ["טמפלייט 1 (מלל ולוגו לבן)", "טמפלייט 2 (מלל ולוגו שחור)"],
+    [
+        "טמפלייט 1 (מלל ולוגו לבן #f6f6f6)", 
+        "טמפלייט 2 (מלל ולוגו שחור #000000)",
+        "טמפלייט 3 (מלל ירוק כהה #013927)",
+        "טמפלייט 4 (מלל חום #703424 ולוגו לבן)"
+    ],
     horizontal=True
 )
 
@@ -190,11 +195,23 @@ if "טמפלייט 1" in template_choice:
     bg_b64 = get_template_bg_base64("template2")
     mooza_logo_b64 = get_mooza_logo_base64("white")
     fallback_color = "#1a1a1a"
-else:  # טמפלייט 2
+elif "טמפלייט 2" in template_choice:
     text_color = "#000000"
     desc_color = "#000000"
     bg_b64 = get_template_bg_base64("template3")
     mooza_logo_b64 = get_mooza_logo_base64("black")
+    fallback_color = "#ffffff"
+elif "טמפלייט 3" in template_choice:
+    text_color = "#013927"
+    desc_color = "#013927"
+    bg_b64 = get_template_bg_base64("template4")
+    mooza_logo_b64 = get_mooza_logo_base64("black")
+    fallback_color = "#ffffff"
+else:  # טמפלייט 4 (לוגו לבן ומלל חום)
+    text_color = "#703424"
+    desc_color = "#703424"
+    bg_b64 = get_template_bg_base64("template5")
+    mooza_logo_b64 = get_mooza_logo_base64("white")
     fallback_color = "#ffffff"
 
 if bg_b64:
@@ -206,7 +223,7 @@ if show_mooza_logo:
     if mooza_logo_b64:
         st.caption("✅ לוגו מוזה אותר בהצלחה ויוצג בתחתית התפריט.")
     else:
-        st.warning("⚠️ לא אותר קובץ לוגו מוזה ב-GitHub. ודא שהעלית קובץ המכיל בשמו 'logo' ו-'לבן' / 'שחור'.")
+        st.warning("⚠️ לא אותר קובץ לוגו מוזה ב-GitHub.")
 
 st.markdown("---")
 
@@ -280,11 +297,11 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
     else:
         num_items = len(selected_drinks)
         if num_items <= 4:
-            font_title, font_item, font_desc, item_gap = "30pt", "14pt", "10pt", "18px"
+            font_title, font_item, font_desc, item_gap = "30pt", "16pt", "11.5pt", "20px"
         elif num_items <= 7:
-            font_title, font_item, font_desc, item_gap = "26pt", "12pt", "9pt", "12px"
+            font_title, font_item, font_desc, item_gap = "26pt", "14pt", "10.5pt", "14px"
         else:
-            font_title, font_item, font_desc, item_gap = "24pt", "10.5pt", "8pt", "6px"
+            font_title, font_item, font_desc, item_gap = "24pt", "12pt", "9.5pt", "8px"
 
         menu_items_html = ""
         for item in selected_drinks:
@@ -335,9 +352,9 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 width: 100%;
                 height: 100%;
                 padding-top: 20mm;   /* 20 מ"מ מראש התפריט אל הכותרת */
-                padding-left: 10mm;
-                padding-right: 10mm;
-                padding-bottom: 8mm;
+                padding-left: 8mm;   /* מושך את המחירים שמאלה */
+                padding-right: 14mm; /* הזחה של שמות הקוקטיילים פנימה */
+                padding-bottom: 4mm; /* ניצול שטח עד הלוגואים */
             }}
             .header {{
                 text-align: center;
@@ -356,6 +373,7 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 flex-direction: column;
                 justify-content: space-around;
                 flex-grow: 1;
+                margin-bottom: 2mm;
             }}
             .menu-item {{ margin-bottom: {item_gap}; }}
             .item-header {{
@@ -370,8 +388,8 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 white-space: nowrap;
             }}
             .item-price {{
-                margin-left: 8mm;
                 white-space: nowrap;
+                margin-left: 0;
             }}
             .item-desc {{
                 font-size: {font_desc};
@@ -383,19 +401,19 @@ if st.button("🚀 הפק תפריט וכרטיסיות ברמן (PDF)", use_con
                 text-align: center;
                 margin-top: auto;
                 width: 100%;
-                padding-top: 4mm;
+                padding-bottom: 5mm;
             }}
             .footer-logos-inner {{
                 display: inline-block;
                 text-align: center;
             }}
             .footer-logo-img {{
-                max-height: 50mm; /* הוגדל פי 3 (במקום 18 מ"מ) */
-                max-width: 50mm;  /* התאמה לפריסה מושלמת וממורכזת */
+                max-height: 48mm;
+                max-width: 48mm;
                 height: auto;
                 width: auto;
                 vertical-align: middle;
-                margin: 0 2.5mm;  /* מרווח 5 מ"מ בין הלוגואים */
+                margin: 0 2.5mm;
                 display: inline-block;
             }}
         </style>
